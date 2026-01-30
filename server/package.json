@@ -1,0 +1,18 @@
+{
+  "name": "nexus-pusher-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node pusher-server.js",
+    "email": "node email-service.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "nodemailer": "^6.9.7",
+    "pusher": "^5.0.0"
+  }
+}
