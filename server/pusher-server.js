@@ -1,7 +1,7 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const Pusher = require('pusher');
+import express from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+import Pusher from 'pusher';
 
 const app = express();
 app.use(cors());
