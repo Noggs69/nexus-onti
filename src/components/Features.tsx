@@ -12,8 +12,8 @@ export default function Features() {
     },
     {
       icon: Shield,
-      title: t('features.quality'),
-      description: t('features.qualityDesc')
+      title: t('features.warranty'),
+      description: t('features.warrantyDesc')
     },
     {
       icon: Headphones,
@@ -22,8 +22,8 @@ export default function Features() {
     },
     {
       icon: CreditCard,
-      title: t('features.quality'),
-      description: t('features.qualityDesc')
+      title: t('features.payment'),
+      description: t('features.paymentDesc')
     }
   ];
 

@@ -3,14 +3,18 @@ import { ConversationsList } from '../components/ConversationsList';
 import { Chat } from '../components/Chat';
 import { CreateQuote } from '../components/CreateQuote';
 import { QuoteView } from '../components/QuoteView';
+import { ChatSearch } from '../components/ChatSearch';
+import { ChatSecurity } from '../components/ChatSecurity';
 import { useQuotes } from '../hooks/useChat';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Search, Shield } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
 export function ChatPage() {
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [showCreateQuote, setShowCreateQuote] = useState(false);
   const [showQuotes, setShowQuotes] = useState(true);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showSecurity, setShowSecurity] = useState(false);
   const { quotes } = useQuotes(selectedConversationId);
   const { t } = useLanguage();
 
@@ -44,14 +48,30 @@ export function ChatPage() {
                   </button>
                 )}
               </div>
-              <button
-                onClick={() => setShowCreateQuote(true)}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition"
-              >
-                {t('chat.createQuote')}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowSearch(!showSearch)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition"
+                  title="Buscar"
+                >
+                  <Search size={20} className="text-gray-600" />
+                </button>
+                <button
+                  onClick={() => setShowSecurity(true)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition"
+                  title="Seguridad"
+                >
+                  <Shield size={20} className="text-gray-600" />
+                </button>
+                <button
+                  onClick={() => setShowCreateQuote(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition"
+                >
+                  {t('chat.createQuote')}
+                </button>
+              </div>
             </div>
-            <div className="flex-1 flex gap-4">
+            <div className="flex-1 flex gap-0">
               <div className="flex-1">
                 <Chat conversationId={selectedConversationId} />
               </div>
@@ -63,11 +83,17 @@ export function ChatPage() {
                   />
                 </div>
               )}
-              {showQuotes && !showCreateQuote && (
+              {showQuotes && !showCreateQuote && !showSearch && (
                 <div className="w-96 border-l border-gray-200 bg-white overflow-y-auto p-4">
                   <h3 className="font-semibold text-gray-900 mb-4">{t('chat.quotes')}</h3>
                   <QuoteView quotes={quotes} />
                 </div>
+              )}
+              {showSearch && !showCreateQuote && (
+                <ChatSearch
+                  conversationId={selectedConversationId}
+                  onClose={() => setShowSearch(false)}
+                />
               )}
             </div>
           </>
@@ -80,6 +106,14 @@ export function ChatPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de seguridad */}
+      {showSecurity && selectedConversationId && (
+        <ChatSecurity
+          conversationId={selectedConversationId}
+          onClose={() => setShowSecurity(false)}
+        />
+      )}
     </div>
   );
 }

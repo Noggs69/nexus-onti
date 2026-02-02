@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -17,68 +17,77 @@ import Account from './pages/Account';
 import { ChatPage } from './pages/ChatPage';
 import { ContactPage } from './pages/ContactPage';
 
+function AppContent() {
+  const location = useLocation();
+  const hideFooter = location.pathname === '/chat';
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col">
+      <Header />
+      <main className="flex-1 pt-16">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/products/:slug" element={<ProductDetailPage />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route
+            path="/checkout"
+            element={
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/order-confirmation/:orderId"
+            element={
+              <ProtectedRoute>
+                <OrderConfirmation />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/account"
+            element={
+              <ProtectedRoute>
+                <Account />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/contact"
+            element={
+              <ProtectedRoute>
+                <ContactPage />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </main>
+      {!hideFooter && <Footer />}
+    </div>
+  );
+}
+
 function App() {
   return (
     <Router>
       <LanguageProvider>
         <AuthProvider>
           <CartProvider>
-            <div className="min-h-screen bg-white flex flex-col">
-              <Header />
-              <main className="flex-1 pt-16">
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/products" element={<Products />} />
-                <Route path="/products/:slug" element={<ProductDetailPage />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
-                <Route
-                  path="/checkout"
-                  element={
-                    <ProtectedRoute>
-                      <Checkout />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/order-confirmation/:orderId"
-                  element={
-                    <ProtectedRoute>
-                      <OrderConfirmation />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/account"
-                  element={
-                    <ProtectedRoute>
-                      <Account />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/chat"
-                  element={
-                    <ProtectedRoute>
-                      <ChatPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/contact"
-                  element={
-                    <ProtectedRoute>
-                      <ContactPage />
-                    </ProtectedRoute>
-                  }
-                />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-        </CartProvider>
-      </AuthProvider>
+            <AppContent />
+          </CartProvider>
+        </AuthProvider>
       </LanguageProvider>
     </Router>
   );

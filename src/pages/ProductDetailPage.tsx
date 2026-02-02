@@ -81,11 +81,11 @@ export default function ProductDetailPage() {
         </Link>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16">
-          <div className="flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden h-96 md:h-auto">
+          <div className="flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden p-8">
             <img
               src={product.image_url || ''}
               alt={product.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full max-h-[500px] object-contain"
               onError={(e) => {
                 e.currentTarget.src =
                   'https://images.pexels.com/photos/3394650/pexels-photo-3394650.jpeg';
@@ -195,13 +195,13 @@ export default function ProductDetailPage() {
             <h2 className="text-2xl font-bold text-gray-900 mb-8">Related Products</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {relatedProducts.map((related) => (
-                <Link key={related.id} to={`/products/€{related.slug}`}>
+                <Link key={related.id} to={`/products/${related.slug}`}>
                   <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow duration-300">
                     <div className="aspect-square bg-gray-100 overflow-hidden">
                       <img
                         src={related.image_url || ''}
                         alt={related.name}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-contain p-4 hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
                           e.currentTarget.src =
                             'https://images.pexels.com/photos/3394650/pexels-photo-3394650.jpeg';

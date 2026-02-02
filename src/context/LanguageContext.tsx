@@ -77,12 +77,14 @@ const translations = {
       offers: 'Ver ofertas'
     },
     features: {
-      quality: 'Calidad Premium',
-      qualityDesc: 'Productos de la más alta calidad con garantía',
       shipping: 'Envío Gratis',
       shippingDesc: 'En todos los pedidos superiores a €50',
-      support: 'Soporte 24/7',
-      supportDesc: 'Estamos aquí para ayudarte siempre'
+      warranty: 'Garantía',
+      warrantyDesc: 'Consulta con el proveedor para más detalles',
+      support: 'Soporte L-V',
+      supportDesc: 'Disponible de lunes a viernes',
+      payment: 'Pago con PayPal',
+      paymentDesc: 'Método de pago seguro y rápido'
     },
     products: {
       title: 'Nuestros Productos',
@@ -251,12 +253,14 @@ const translations = {
       offers: 'View offers'
     },
     features: {
-      quality: 'Premium Quality',
-      qualityDesc: 'Products of the highest quality with warranty',
       shipping: 'Free Shipping',
       shippingDesc: 'On all orders over €50',
-      support: '24/7 Support',
-      supportDesc: 'We are here to help you always'
+      warranty: 'Warranty',
+      warrantyDesc: 'Contact provider for more details',
+      support: 'M-F Support',
+      supportDesc: 'Available Monday to Friday',
+      payment: 'PayPal Payment',
+      paymentDesc: 'Safe and fast payment method'
     },
     products: {
       title: 'Our Products',
@@ -425,12 +429,14 @@ const translations = {
       offers: 'Veure ofertes'
     },
     features: {
-      quality: 'Qualitat Premium',
-      qualityDesc: 'Productes de la més alta qualitat amb garantia',
-      shipping: 'Enviament Gratis',
+      shipping: 'Enviament Gratuït',
       shippingDesc: 'En totes les comandes superiors a €50',
-      support: 'Suport 24/7',
-      supportDesc: 'Estem ací per a ajudar-te sempre'
+      warranty: 'Garantia',
+      warrantyDesc: 'Consulta amb el proveïdor per a més detalls',
+      support: 'Suport L-V',
+      supportDesc: 'Disponible de dilluns a divendres',
+      payment: 'Pagament amb PayPal',
+      paymentDesc: 'Mètode de pagament segur i ràpid'
     },
     products: {
       title: 'Els Nostres Productes',

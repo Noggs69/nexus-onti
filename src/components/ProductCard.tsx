@@ -41,11 +41,11 @@ export default function ProductCard({ product }: ProductCardProps) {
   return (
     <Link to={`/products/${product.slug}`}>
       <div className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 h-full flex flex-col">
-        <div className="aspect-square overflow-hidden bg-gray-100">
+        <div className="aspect-square overflow-hidden bg-gray-100 relative">
           <img
             src={product.image_url || 'https://images.pexels.com/photos/699122/pexels-photo-699122.jpeg'}
             alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            className="absolute inset-0 w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500"
             onError={(e) => {
               e.currentTarget.src =
                 'https://images.pexels.com/photos/3394650/pexels-photo-3394650.jpeg';

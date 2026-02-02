@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useConversations } from '../hooks/useChat';
-import { Plus } from 'lucide-react';
+import { Plus, MoreVertical, Pin, Archive, Volume2, VolumeX, Trash2, MessageSquare } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
 
 interface ConversationsListProps {
   onSelectConversation: (conversationId: string) => void;
@@ -13,7 +15,125 @@ export function ConversationsList({
   selectedConversationId,
 }: ConversationsListProps) {
   const navigate = useNavigate();
-  const { conversations, loading } = useConversations();
+  const { conversations, loading, loadConversations } = useConversations();
+  const { user } = useAuth();
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const handlePinConversation = async (conversationId: string, isPinned: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ pinned: !isPinned })
+        .eq('id', conversationId);
+
+      if (error) throw error;
+      await loadConversations();
+    } catch (error) {
+      console.error('Error pinning conversation:', error);
+      alert('Error al fijar la conversación');
+    } finally {
+      setActionLoading(false);
+      setMenuOpen(null);
+    }
+  };
+
+  const handleMuteConversation = async (conversationId: string, isMuted: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActionLoading(true);
+    try {
+      const mutedUntil = isMuted ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 horas
+      
+      const { error } = await supabase
+        .from('conversations')
+        .update({ muted_until: mutedUntil })
+        .eq('id', conversationId);
+
+      if (error) throw error;
+      await loadConversations();
+    } catch (error) {
+      console.error('Error muting conversation:', error);
+      alert('Error al silenciar la conversación');
+    } finally {
+      setActionLoading(false);
+      setMenuOpen(null);
+    }
+  };
+
+  const handleArchiveConversation = async (conversationId: string, isArchived: boolean, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ archived: !isArchived })
+        .eq('id', conversationId);
+
+      if (error) throw error;
+      await loadConversations();
+    } catch (error) {
+      console.error('Error archiving conversation:', error);
+      alert('Error al archivar la conversación');
+    } finally {
+      setActionLoading(false);
+      setMenuOpen(null);
+    }
+  };
+
+  const handleDeleteConversation = async (conversationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('¿Estás seguro de que quieres eliminar esta conversación? Se borrarán todos los mensajes.')) {
+      setMenuOpen(null);
+      return;
+    }
+    
+    setActionLoading(true);
+    try {
+      // Eliminar la conversación (los mensajes se eliminan en cascada)
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId);
+
+      if (error) throw error;
+      
+      // Si era la conversación seleccionada, deseleccionarla
+      if (selectedConversationId === conversationId) {
+        onSelectConversation(null as any);
+      }
+      
+      // Recargar lista
+      await loadConversations();
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+      alert('Error al eliminar la conversación');
+    } finally {
+      setActionLoading(false);
+      setMenuOpen(null);
+    }
+  };
+
+  const handleMarkAsUnread = async (conversationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ unread_count: 1 })
+        .eq('id', conversationId);
+
+      if (error) throw error;
+      await loadConversations();
+    } catch (error) {
+      console.error('Error marking as unread:', error);
+      alert('Error al marcar como no leído');
+    } finally {
+      setActionLoading(false);
+      setMenuOpen(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -43,28 +163,101 @@ export function ConversationsList({
           </div>
         ) : (
           conversations.map((conversation) => (
-            <button
+            <div
               key={conversation.id}
-              onClick={() => onSelectConversation(conversation.id)}
-              className={`w-full text-left p-4 border-b border-gray-200 transition ${
+              className={`relative w-full text-left border-b border-gray-200 transition ${
                 selectedConversationId === conversation.id
                   ? 'bg-blue-50 border-l-4 border-l-blue-600'
                   : 'hover:bg-gray-100'
               }`}
             >
-              <p className="font-medium text-sm text-gray-900">
-                {conversation.status === 'active' ? 'Conversación Activa' : 'Conversación'}
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                {new Date(conversation.created_at).toLocaleDateString('es-ES', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </p>
-            </button>
+              <button
+                onClick={() => onSelectConversation(conversation.id)}
+                className="w-full p-4 pr-12"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm text-gray-900 flex items-center gap-2">
+                      {conversation.status === 'active' ? 'Conversación Activa' : 'Conversación'}
+                      {conversation.pinned && <Pin size={14} className="text-blue-600" />}
+                      {conversation.muted_until && <VolumeX size={14} className="text-gray-400" />}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {new Date(conversation.created_at).toLocaleDateString('es-ES', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                  {conversation.unread_count > 0 && (
+                    <span className="ml-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {conversation.unread_count}
+                    </span>
+                  )}
+                </div>
+              </button>
+
+              {/* Menú contextual */}
+              <div className="absolute right-2 top-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(menuOpen === conversation.id ? null : conversation.id);
+                  }}
+                  className="p-2 hover:bg-gray-200 rounded-full transition"
+                >
+                  <MoreVertical size={16} className="text-gray-600" />
+                </button>
+
+                {menuOpen === conversation.id && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                    <button
+                      onClick={(e) => handlePinConversation(conversation.id, conversation.pinned || false, e)}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                      disabled={actionLoading}
+                    >
+                      <Pin size={16} />
+                      {conversation.pinned ? 'Desfijar' : 'Fijar'}
+                    </button>
+                    <button
+                      onClick={(e) => handleMuteConversation(conversation.id, !!conversation.muted_until, e)}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                      disabled={actionLoading}
+                    >
+                      {conversation.muted_until ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                      {conversation.muted_until ? 'Reactivar' : 'Silenciar'}
+                    </button>
+                    <button
+                      onClick={(e) => handleMarkAsUnread(conversation.id, e)}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                      disabled={actionLoading}
+                    >
+                      <MessageSquare size={16} />
+                      Marcar como no leído
+                    </button>
+                    <button
+                      onClick={(e) => handleArchiveConversation(conversation.id, conversation.archived || false, e)}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                      disabled={actionLoading}
+                    >
+                      <Archive size={16} />
+                      {conversation.archived ? 'Desarchivar' : 'Archivar'}
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteConversation(conversation.id, e)}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 text-red-600 flex items-center gap-2"
+                      disabled={actionLoading}
+                    >
+                      <Trash2 size={16} />
+                      Eliminar
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           ))
         )}
       </div>
