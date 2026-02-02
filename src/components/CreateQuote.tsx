@@ -85,10 +85,8 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
       return;
     }
 
-    if (!paymentLink || !paymentLink.trim()) {
-      alert('El enlace de pago de PayPal es obligatorio');
-      return;
-    }
+    // Establecer automáticamente el enlace de pago a /pagar
+    const paymentUrl = `${window.location.origin}/pagar`;
 
     setLoading(true);
     try {
@@ -105,7 +103,7 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
           subtotal,
           shipping_cost: shipping,
           total,
-          payment_link: paymentLink,
+          payment_link: paymentUrl,
           status: 'sent',
         })
         .select()
@@ -142,7 +140,10 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
           })
         );
 
-        const quoteMessage = `📋 *Nueva cotización creada*\n\n*Productos:*\n${productLines.join('\n\n')}\n\n*Subtotal:* €${subtotal.toFixed(2)}\n*Envío:* €${shipping.toFixed(2)}\n*Total:* €${total.toFixed(2)}\n\n💳 *Pagar ahora:*\n${paymentLink}`;
+        // Crear enlace con parámetros de la cotización
+        const paymentUrlWithParams = `${paymentUrl}?quoteId=${data.id}&total=${total.toFixed(2)}`;
+
+        const quoteMessage = `📋 *Nueva cotización creada*\n\n*Productos:*\n${productLines.join('\n\n')}\n\n*Subtotal:* €${subtotal.toFixed(2)}\n*Envío:* €${shipping.toFixed(2)}\n*Total:* €${total.toFixed(2)}\n\n💳 *Pagar ahora:*\n${paymentUrlWithParams}`;
         
         await supabase
           .from('messages')
@@ -360,22 +361,6 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
               placeholder="Condiciones especiales, plazos de entrega, términos de pago..."
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-900 mb-1">
-              Link de Pago PayPal <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="url"
-              value={paymentLink}
-              onChange={(e) => setPaymentLink(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-              placeholder="https://paypal.me/..."
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Obligatorio. Puedes crear un link de pago en paypal.me
-            </p>
           </div>
         </div>
 

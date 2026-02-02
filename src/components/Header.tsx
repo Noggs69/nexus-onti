@@ -35,7 +35,9 @@ export default function Header() {
             </button>
 
             <Link to="/" className="flex items-center">
-              <span className="text-2xl font-bold text-white tracking-tight">NEXUS</span>
+              <span className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-400 via-cyan-400 to-green-400 text-transparent bg-clip-text">
+                NEXUS
+              </span>
             </Link>
 
             <div className="hidden lg:flex space-x-8">

@@ -9,7 +9,9 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           <div>
-            <h3 className="text-2xl font-bold mb-4">NEXUS</h3>
+            <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 via-cyan-400 to-green-400 text-transparent bg-clip-text">
+              NEXUS
+            </h3>
             <p className="text-gray-400 text-sm leading-relaxed">
               {t('footer.description')}
             </p>

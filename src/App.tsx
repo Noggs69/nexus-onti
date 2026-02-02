@@ -17,6 +17,7 @@ import Account from './pages/Account';
 import { ChatPage } from './pages/ChatPage';
 import { ContactPage } from './pages/ContactPage';
 import { ManageProducts } from './pages/ManageProducts';
+import { PaymentPage } from './pages/PaymentPage';
 
 function AppContent() {
   const location = useLocation();
@@ -81,6 +82,7 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          <Route path="/pagar" element={<PaymentPage />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}
