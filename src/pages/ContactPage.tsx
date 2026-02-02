@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useProducts } from '../hooks/useProducts';
 import { supabase } from '../lib/supabase';
-import { Send } from 'lucide-react';
+import { Send, AlertCircle } from 'lucide-react';
 
 export function ContactPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { products } = useProducts();
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -27,6 +27,28 @@ export function ContactPage() {
     );
   }
 
+  // Los proveedores no pueden crear conversaciones
+  if (profile?.role === 'provider') {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+          <AlertCircle size={48} className="text-orange-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Acceso Restringido</h1>
+          <p className="text-gray-600 mb-6">
+            Como proveedor, recibes conversaciones de los clientes automáticamente.
+            No necesitas iniciar conversaciones.
+          </p>
+          <button
+            onClick={() => navigate('/chat')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
+          >
+            Ir al Chat
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const handleStartConversation = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) {
@@ -36,9 +58,15 @@ export function ContactPage() {
 
     setLoading(true);
     try {
-      // Attempt to set provider_id if the selected product includes an owner/provider field
-      const product = products.find((p) => p.id === selectedProductId) as any | undefined;
-      const providerId = product?.owner_id || product?.provider_id || null;
+      // Obtener el proveedor automáticamente (solo hay uno en el sistema)
+      const { data: providerData } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'provider')
+        .limit(1)
+        .maybeSingle();
+
+      const providerId = providerData?.id || null;
 
       const { data, error: err } = await supabase
         .from('conversations')
@@ -58,6 +86,23 @@ export function ContactPage() {
         sender_id: user.id,
         content: message,
       });
+
+      // Notificar al proveedor a través del servidor Pusher
+      if (providerId) {
+        try {
+          await fetch('http://localhost:5000/notify-new-conversation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              providerId,
+              conversationId: data.id,
+            }),
+          });
+        } catch (notifyError) {
+          console.error('Error notifying provider:', notifyError);
+          // No bloqueamos la operación si falla la notificación
+        }
+      }
 
       navigate('/chat');
     } catch (error) {

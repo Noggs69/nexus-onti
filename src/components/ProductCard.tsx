@@ -1,4 +1,4 @@
-import { ShoppingCart, AlertCircle } from 'lucide-react';
+import { ShoppingCart, AlertCircle, Edit2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Product } from '../lib/supabase';
 import { useCart } from '../hooks/useCart';
@@ -13,10 +13,12 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { t } = useLanguage();
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+
+  const isProvider = profile?.role === 'provider';
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -36,6 +38,11 @@ export default function ProductCard({ product }: ProductCardProps) {
     } finally {
       setAdding(false);
     }
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.preventDefault();
+    navigate('/manage-products', { state: { editProductId: product.id } });
   };
 
   return (
@@ -78,18 +85,28 @@ export default function ProductCard({ product }: ProductCardProps) {
               </span>
             </div>
 
-            <button
-              onClick={handleAddToCart}
-              disabled={adding}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                added
-                  ? 'bg-green-600 text-white'
-                  : 'bg-black text-white hover:bg-gray-800 disabled:bg-gray-400'
-              }`}
-            >
-              <ShoppingCart className="w-4 h-4" />
-              <span className="text-sm font-medium">{adding ? t('products.adding') : added ? t('products.added') : t('products.add')}</span>
-            </button>
+            {isProvider ? (
+              <button
+                onClick={handleEdit}
+                className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+              >
+                <Edit2 className="w-4 h-4" />
+                <span className="text-sm font-medium">Editar</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleAddToCart}
+                disabled={adding}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  added
+                    ? 'bg-green-600 text-white'
+                    : 'bg-black text-white hover:bg-gray-800 disabled:bg-gray-400'
+                }`}
+              >
+                <ShoppingCart className="w-4 h-4" />
+                <span className="text-sm font-medium">{adding ? t('products.adding') : added ? t('products.added') : t('products.add')}</span>
+              </button>
+            )}
           </div>
         </div>
 

@@ -8,11 +8,13 @@ import { LanguageSelector } from './LanguageSelector';
 
 export default function Header() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, profile } = useAuth();
   const { getItemCount } = useCart();
   const { t } = useLanguage();
   const [showMenu, setShowMenu] = useState(false);
   const itemCount = getItemCount();
+
+  const isProvider = profile?.role === 'provider';
 
   const handleLogout = async () => {
     await logout();
@@ -43,29 +45,41 @@ export default function Header() {
               >
                 {t('nav.products')}
               </Link>
-              <Link
-                to="/contact"
-                className="text-gray-300 hover:text-white transition-colors text-sm font-medium"
-              >
-                {t('nav.contact')}
-              </Link>
+              {!isProvider && (
+                <Link
+                  to="/contact"
+                  className="text-gray-300 hover:text-white transition-colors text-sm font-medium"
+                >
+                  {t('nav.contact')}
+                </Link>
+              )}
+              {isProvider && (
+                <Link
+                  to="/manage-products"
+                  className="text-gray-300 hover:text-white transition-colors text-sm font-medium"
+                >
+                  Gestionar Productos
+                </Link>
+              )}
             </div>
           </div>
 
           <div className="flex items-center space-x-4">
             <LanguageSelector />
             
-            <Link
-              to="/cart"
-              className="text-gray-300 hover:text-white transition-colors relative"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              {itemCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                  {itemCount}
-                </span>
-              )}
-            </Link>
+            {!isProvider && (
+              <Link
+                to="/cart"
+                className="text-gray-300 hover:text-white transition-colors relative"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {itemCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {itemCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {user ? (
               <div className="relative">
@@ -88,13 +102,24 @@ export default function Header() {
                     >
                       {t('nav.account')}
                     </Link>
-                    <Link
-                      to="/contact"
-                      onClick={() => setShowMenu(false)}
-                      className="block px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
-                    >
-                      {t('nav.contact')}
-                    </Link>
+                    {!isProvider && (
+                      <Link
+                        to="/contact"
+                        onClick={() => setShowMenu(false)}
+                        className="block px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+                      >
+                        {t('nav.contact')}
+                      </Link>
+                    )}
+                    {isProvider && (
+                      <Link
+                        to="/manage-products"
+                        onClick={() => setShowMenu(false)}
+                        className="block px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+                      >
+                        Gestionar Productos
+                      </Link>
+                    )}
                     <Link
                       to="/chat"
                       onClick={() => setShowMenu(false)}

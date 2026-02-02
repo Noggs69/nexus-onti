@@ -46,6 +46,24 @@ app.post('/send-message', async (req, res) => {
   }
 });
 
+// Notificar nueva conversación al proveedor
+app.post('/notify-new-conversation', async (req, res) => {
+  try {
+    const { providerId, conversationId } = req.body || {};
+    if (!providerId || !conversationId) {
+      return res.status(400).json({ error: 'Missing providerId or conversationId' });
+    }
+
+    const channel = `provider-${providerId}`;
+    await pusher.trigger(channel, 'new-conversation', { conversationId });
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Failed to notify provider:', err);
+    return res.status(500).json({ error: 'notification failed' });
+  }
+});
+
 // Respond to Chrome DevTools well-known probe to avoid noisy 404s in dev
 app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
   res.json({});

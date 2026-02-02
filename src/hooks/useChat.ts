@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { supabase, Message, Conversation, Quote } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import usePusherMessages from './usePusherMessages';
+import pusher from '../lib/pusher';
 
 export function useConversations() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
+  const [newConversationId, setNewConversationId] = useState<string | null>(null);
+  const { user, profile } = useAuth();
 
   useEffect(() => {
     loadConversations();
@@ -18,10 +20,25 @@ export function useConversations() {
       })
       .subscribe();
 
+    // Escuchar nuevas conversaciones en tiempo real para proveedores
+    if (profile?.role === 'provider' && user?.id) {
+      const providerChannel = pusher.subscribe(`provider-${user.id}`);
+      providerChannel.bind('new-conversation', (data: { conversationId: string }) => {
+        setNewConversationId(data.conversationId);
+        loadConversations();
+      });
+
+      return () => {
+        subscription.unsubscribe();
+        providerChannel.unbind('new-conversation');
+        pusher.unsubscribe(`provider-${user.id}`);
+      };
+    }
+
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [user?.id, profile?.role]);
 
   async function loadConversations() {
     try {
@@ -48,7 +65,7 @@ export function useConversations() {
     }
   }
 
-  return { conversations, loading, error, loadConversations };
+  return { conversations, loading, error, loadConversations, newConversationId, clearNewConversation: () => setNewConversationId(null) };
 }
 
 export function useMessages(conversationId: string | null) {

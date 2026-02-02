@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase, Product } from '../lib/supabase';
 import { useProducts } from '../hooks/useProducts';
 import { useQuotes } from '../hooks/useChat';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { X, Plus, Trash2, ArrowLeft, AlertCircle } from 'lucide-react';
 
 interface QuoteItem {
   product_id: string;
@@ -18,6 +19,7 @@ interface CreateQuoteProps {
 export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
   const { products } = useProducts();
   const { loadQuotes } = useQuotes(conversationId);
+  const { user, profile } = useAuth();
   const [items, setItems] = useState<QuoteItem[]>([]);
   const [shippingCost, setShippingCost] = useState('0');
   const [customerName, setCustomerName] = useState('');
@@ -30,6 +32,25 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
   const [notes, setNotes] = useState('');
   const [discount, setDiscount] = useState('0');
   const [loading, setLoading] = useState(false);
+
+  // Verificar que el usuario sea proveedor
+  if (!profile || profile.role !== 'provider') {
+    return (
+      <div className="p-4 md:p-6 h-full flex flex-col items-center justify-center">
+        <AlertCircle size={48} className="text-red-500 mb-4" />
+        <h3 className="text-lg font-bold text-gray-900 mb-2">Acceso Denegado</h3>
+        <p className="text-gray-600 text-center mb-4">
+          Solo los proveedores pueden crear cotizaciones.
+        </p>
+        <button
+          onClick={onClose}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition"
+        >
+          Cerrar
+        </button>
+      </div>
+    );
+  }
 
   const addItem = () => {
     if (products.length > 0) {
@@ -115,10 +136,19 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold text-gray-900">Nueva Cotización</h3>
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+    <div className="p-4 md:p-6 h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4 md:mb-6">
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={onClose} 
+            className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition -ml-2"
+            title="Volver"
+          >
+            <ArrowLeft size={20} className="text-gray-600" />
+          </button>
+          <h3 className="text-base md:text-lg font-bold text-gray-900">Nueva Cotización</h3>
+        </div>
+        <button onClick={onClose} className="hidden md:block text-gray-500 hover:text-gray-700">
           <X size={20} />
         </button>
       </div>

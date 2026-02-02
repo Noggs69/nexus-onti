@@ -16,6 +16,7 @@ import OrderConfirmation from './pages/OrderConfirmation';
 import Account from './pages/Account';
 import { ChatPage } from './pages/ChatPage';
 import { ContactPage } from './pages/ContactPage';
+import { ManageProducts } from './pages/ManageProducts';
 
 function AppContent() {
   const location = useLocation();
@@ -69,6 +70,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <ContactPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manage-products"
+            element={
+              <ProtectedRoute>
+                <ManageProducts />
               </ProtectedRoute>
             }
           />
