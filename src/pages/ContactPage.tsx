@@ -67,6 +67,12 @@ export function ContactPage() {
         .maybeSingle();
 
       const providerId = providerData?.id || null;
+      
+      console.log('Creating conversation with:', {
+        customer_id: user.id,
+        product_id: selectedProductId,
+        provider_id: providerId
+      });
 
       const { data, error: err } = await supabase
         .from('conversations')
@@ -77,6 +83,8 @@ export function ContactPage() {
         })
         .select()
         .maybeSingle();
+      
+      console.log('Conversation created:', data, 'Error:', err);
 
       if (err) throw err;
       if (!data) throw new Error('Failed to create conversation');
