@@ -18,10 +18,10 @@ BEGIN
     RETURN NEW;
   END IF;
   
-  -- Buscar el ID del provider (nachomolla6@gmail.com)
+  -- Buscar el ID del provider (nacho.molla.pra@gmail.com)
   SELECT id INTO provider_user_id
   FROM profiles
-  WHERE email = 'nachomolla6@gmail.com'
+  WHERE email = 'nacho.molla.pra@gmail.com'
   AND role = 'provider'
   LIMIT 1;
   
