@@ -18,14 +18,20 @@ BEGIN
     RETURN NEW;
   END IF;
   
-  -- Buscar el ID del provider (nacho.molla.pra@gmail.com)
-  SELECT id INTO provider_user_id
-  FROM profiles
-  WHERE email = 'nacho.molla.pra@gmail.com'
-  AND role = 'provider'
+  -- Asignar al proveedor que tenga MENOS conversaciones activas
+  -- Esto distribuye la carga equitativamente entre ambos proveedores
+  SELECT p.id INTO provider_user_id
+  FROM profiles p
+  WHERE p.role = 'provider'
+  AND p.email IN ('nacho.molla.pra@gmail.com', 'kalbito06@gmail.com')
+  ORDER BY (
+    SELECT COUNT(*) 
+    FROM conversations c 
+    WHERE c.provider_id = p.id
+  ) ASC
   LIMIT 1;
   
-  -- Si existe el provider, asignarlo
+  -- Si existe un provider, asignarlo
   IF provider_user_id IS NOT NULL THEN
     NEW.provider_id := provider_user_id;
   END IF;

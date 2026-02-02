@@ -160,6 +160,31 @@ export function useQuotes(conversationId: string | null) {
     }
 
     loadQuotes();
+    
+    // Suscripción en tiempo real para nuevas cotizaciones
+    const subscription = supabase
+      .channel(`quotes-${conversationId}`)
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'quotes', 
+        filter: `conversation_id=eq.${conversationId}` 
+      }, (payload) => {
+        setQuotes(prev => [payload.new as Quote, ...prev]);
+      })
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'quotes', 
+        filter: `conversation_id=eq.${conversationId}` 
+      }, (payload) => {
+        setQuotes(prev => prev.map(q => q.id === payload.new.id ? payload.new as Quote : q));
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [conversationId]);
 
   async function loadQuotes() {

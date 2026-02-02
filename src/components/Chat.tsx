@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useMessages } from '../hooks/useChat';
 import { useAuth } from '../hooks/useAuth';
-import { Send, Package, DollarSign, MoreVertical, Reply, Edit2, Trash2, Copy, Forward, Smile } from 'lucide-react';
+import { useNotifications } from '../hooks/useNotifications';
+import { Send, Package, DollarSign, MoreVertical, Reply, Edit2, Trash2, Copy, Forward, Smile, Bell, BellOff } from 'lucide-react';
 import { ProductShareCard } from './ProductShareCard';
 import { QuickMessageButtons } from './QuickMessageButtons';
 import { supabase, Product } from '../lib/supabase';
@@ -11,10 +12,35 @@ interface ChatProps {
   conversationId: string | null;
 }
 
+// Función para convertir URLs en enlaces clicables
+function linkifyText(text: string) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  
+  return parts.map((part, index) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:opacity-80"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+}
+
 export function Chat({ conversationId }: ChatProps) {
   const { messages, sendMessage, loading } = useMessages(conversationId);
   const { user } = useAuth();
   const { t } = useLanguage();
+  const { permission, requestPermission, showNotification } = useNotifications();
   const [messageContent, setMessageContent] = useState('');
   const [sending, setSending] = useState(false);
   const [showPriceOffer, setShowPriceOffer] = useState(false);
@@ -26,8 +52,10 @@ export function Chat({ conversationId }: ChatProps) {
   const [editContent, setEditContent] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousMessagesCount = useRef(0);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,6 +64,33 @@ export function Chat({ conversationId }: ChatProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Detectar nuevos mensajes y mostrar notificación
+  useEffect(() => {
+    if (messages.length > 0 && previousMessagesCount.current > 0) {
+      const newMessages = messages.slice(previousMessagesCount.current);
+      
+      newMessages.forEach((msg) => {
+        // Solo notificar si el mensaje no es propio y las notificaciones están habilitadas
+        if (msg.sender_id !== user?.id && notificationsEnabled) {
+          showNotification('Nuevo mensaje en NEXUS', {
+            body: msg.content.length > 100 ? msg.content.substring(0, 100) + '...' : msg.content,
+            tag: `message-${msg.id}`,
+            requireInteraction: false,
+          });
+        }
+      });
+    }
+    
+    previousMessagesCount.current = messages.length;
+  }, [messages, user, notificationsEnabled, showNotification]);
+
+  // Solicitar permisos de notificación al montar el componente
+  useEffect(() => {
+    if (permission === 'default') {
+      requestPermission();
+    }
+  }, [permission, requestPermission]);
 
   // Marcar mensajes como leídos cuando se abre la conversación
   useEffect(() => {
@@ -126,25 +181,33 @@ export function Chat({ conversationId }: ChatProps) {
     // Detener estado de "escribiendo" al enviar
     updateTypingStatus(false);
     
+    const content = messageContent;
+    setMessageContent(''); // Limpiar input inmediatamente para mejor UX
+    
     try {
-      const created = await sendMessage(messageContent, user.id);
-      // notify Pusher server to broadcast the message to other clients
+      const created = await sendMessage(content, user.id);
+      
+      // El mensaje aparecerá automáticamente gracias a la suscripción de Supabase Realtime
+      // en useMessages (useChat.ts líneas 99-103)
+      // Ya no es necesario actualizar el estado manualmente
+      
+      // notify Pusher server to broadcast the message to other clients (opcional para notificaciones)
       try {
         await fetch('http://localhost:5000/send-message', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             conversationId,
-            message: created || { conversation_id: conversationId, sender_id: user.id, content: messageContent },
+            message: created || { conversation_id: conversationId, sender_id: user.id, content },
           }),
         });
       } catch (err) {
         console.error('Failed to notify pusher server:', err);
       }
-
-      setMessageContent('');
     } catch (error) {
       console.error('Error sending message:', error);
+      // Restaurar el contenido si falla
+      setMessageContent(content);
     } finally {
       setSending(false);
     }
@@ -249,6 +312,39 @@ export function Chat({ conversationId }: ChatProps) {
 
   return (
     <div className="flex flex-col h-full bg-white">
+      {/* Mini header con botón de notificaciones */}
+      <div className="border-b border-gray-100 px-4 py-2 flex justify-end">
+        <button
+          onClick={() => {
+            if (permission === 'granted') {
+              setNotificationsEnabled(!notificationsEnabled);
+            } else {
+              requestPermission().then((granted) => {
+                if (granted) setNotificationsEnabled(true);
+              });
+            }
+          }}
+          className={`p-2 rounded-lg transition ${
+            notificationsEnabled && permission === 'granted'
+              ? 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+          title={
+            permission === 'denied'
+              ? 'Notificaciones bloqueadas. Habilítalas en la configuración del navegador'
+              : notificationsEnabled
+              ? 'Desactivar notificaciones'
+              : 'Activar notificaciones'
+          }
+        >
+          {notificationsEnabled && permission === 'granted' ? (
+            <Bell size={18} />
+          ) : (
+            <BellOff size={18} />
+          )}
+        </button>
+      </div>
+      
       <QuickMessageButtons onSendMessage={handleQuickMessage} />
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (
@@ -300,7 +396,7 @@ export function Chat({ conversationId }: ChatProps) {
                             : 'bg-gray-200 text-gray-900 rounded-bl-none'
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                        <p className="text-sm whitespace-pre-wrap break-words">{linkifyText(message.content)}</p>
                         
                         {/* Reacciones */}
                         {message.reactions && message.reactions.length > 0 && (

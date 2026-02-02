@@ -53,16 +53,14 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
   }
 
   const addItem = () => {
-    if (products.length > 0) {
-      setItems([
-        ...items,
-        {
-          product_id: products[0].id,
-          quantity: 1,
-          unit_price: products[0].price,
-        },
-      ]);
-    }
+    setItems([
+      ...items,
+      {
+        product_id: '',
+        quantity: 1,
+        unit_price: 0,
+      },
+    ]);
   };
 
   const removeItem = (index: number) => {
@@ -87,6 +85,11 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
       return;
     }
 
+    if (!paymentLink || !paymentLink.trim()) {
+      alert('El enlace de pago de PayPal es obligatorio');
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error: err } = await supabase
@@ -102,8 +105,8 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
           subtotal,
           shipping_cost: shipping,
           total,
-          payment_link: paymentLink || null,
-          status: paymentLink ? 'sent' : 'pending',
+          payment_link: paymentLink,
+          status: 'sent',
         })
         .select()
         .maybeSingle();
@@ -123,6 +126,45 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
           });
 
         if (itemErr) throw itemErr;
+      }
+
+      // Enviar mensaje automático al cliente notificando la cotización
+      if (user) {
+        // Construir lista de productos con enlaces
+        const productLines = await Promise.all(
+          items.map(async (item) => {
+            const product = products.find(p => p.id === item.product_id);
+            if (product) {
+              const productUrl = `${window.location.origin}/products/${product.slug}`;
+              return `  • ${product.name} (x${item.quantity}) - €${(item.quantity * item.unit_price).toFixed(2)}\n    🔗 Ver producto: ${productUrl}`;
+            }
+            return `  • Producto (x${item.quantity}) - €${(item.quantity * item.unit_price).toFixed(2)}`;
+          })
+        );
+
+        const quoteMessage = `📋 *Nueva cotización creada*\n\n*Productos:*\n${productLines.join('\n\n')}\n\n*Subtotal:* €${subtotal.toFixed(2)}\n*Envío:* €${shipping.toFixed(2)}\n*Total:* €${total.toFixed(2)}\n\n💳 *Pagar ahora:*\n${paymentLink}`;
+        
+        await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: user.id,
+            content: quoteMessage,
+          });
+
+        // Notificar vía Pusher (opcional)
+        try {
+          await fetch('http://localhost:5000/send-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              conversationId,
+              message: { conversation_id: conversationId, sender_id: user.id, content: quoteMessage },
+            }),
+          });
+        } catch (err) {
+          console.error('Failed to notify pusher:', err);
+        }
       }
 
       await loadQuotes();
@@ -224,15 +266,23 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
                 <select
                   value={item.product_id}
                   onChange={(e) => {
-                    const p = products.find((prod) => prod.id === e.target.value);
-                    updateItem(index, 'product_id', e.target.value);
-                    if (p) updateItem(index, 'unit_price', p.price);
+                    const selectedProductId = e.target.value;
+                    const p = products.find((prod) => prod.id === selectedProductId);
+                    const newItems = [...items];
+                    newItems[index] = {
+                      ...newItems[index],
+                      product_id: selectedProductId,
+                      unit_price: p ? p.price : 0
+                    };
+                    setItems(newItems);
                   }}
                   className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  required
                 >
+                  <option value="">Selecciona un producto</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name}
+                      {p.name} - €{p.price.toFixed(2)}
                     </option>
                   ))}
                 </select>
@@ -313,7 +363,7 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-900 mb-1">
-              Link de Pago PayPal (Opcional)
+              Link de Pago PayPal <span className="text-red-500">*</span>
             </label>
             <input
               type="url"
@@ -321,9 +371,10 @@ export function CreateQuote({ conversationId, onClose }: CreateQuoteProps) {
               onChange={(e) => setPaymentLink(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
               placeholder="https://paypal.me/..."
+              required
             />
             <p className="text-xs text-gray-500 mt-1">
-              Puedes crear un link de pago en paypal.me
+              Obligatorio. Puedes crear un link de pago en paypal.me
             </p>
           </div>
         </div>

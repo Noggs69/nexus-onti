@@ -1,7 +1,7 @@
--- Cambiar nacho.molla.pra@gmail.com de cliente a proveedor
+-- Cambiar ambos correos a proveedores
 UPDATE profiles 
 SET role = 'provider' 
-WHERE email = 'nacho.molla.pra@gmail.com';
+WHERE email IN ('nacho.molla.pra@gmail.com', 'kalbito06@gmail.com');
 
 -- Verificar el cambio
-SELECT id, email, role FROM profiles WHERE email LIKE '%nacho%' ORDER BY email;
+SELECT id, email, role FROM profiles WHERE email IN ('nacho.molla.pra@gmail.com', 'kalbito06@gmail.com') ORDER BY email;
