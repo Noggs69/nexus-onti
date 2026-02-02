@@ -24,7 +24,10 @@ export function Chat({ conversationId }: ChatProps) {
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [editingMessage, setEditingMessage] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,6 +36,47 @@ export function Chat({ conversationId }: ChatProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Marcar mensajes como leídos cuando se abre la conversación
+  useEffect(() => {
+    if (!conversationId || !user) return;
+
+    const markAsRead = async () => {
+      try {
+        await supabase.rpc('mark_messages_as_read', {
+          p_conversation_id: conversationId,
+          p_reader_id: user.id
+        });
+      } catch (error) {
+        console.error('Error marking messages as read:', error);
+      }
+    };
+
+    markAsRead();
+
+    // Escuchar cambios en typing_status
+    const typingChannel = supabase
+      .channel(`typing-${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'typing_status',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        (payload: any) => {
+          if (payload.new && payload.new.user_id !== user.id) {
+            setOtherUserTyping(payload.new.is_typing);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      typingChannel.unsubscribe();
+    };
+  }, [conversationId, user]);
 
   const handleReply = (message: any) => {
     setReplyingTo(message);
@@ -78,6 +122,10 @@ export function Chat({ conversationId }: ChatProps) {
     if (!messageContent.trim() || !user || !conversationId) return;
 
     setSending(true);
+    
+    // Detener estado de "escribiendo" al enviar
+    updateTypingStatus(false);
+    
     try {
       const created = await sendMessage(messageContent, user.id);
       // notify Pusher server to broadcast the message to other clients
@@ -99,6 +147,50 @@ export function Chat({ conversationId }: ChatProps) {
       console.error('Error sending message:', error);
     } finally {
       setSending(false);
+    }
+  };
+
+  // Actualizar estado de "escribiendo"
+  const updateTypingStatus = async (typing: boolean) => {
+    if (!conversationId || !user) return;
+
+    try {
+      await supabase
+        .from('typing_status')
+        .upsert({
+          conversation_id: conversationId,
+          user_id: user.id,
+          is_typing: typing,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'conversation_id,user_id' });
+    } catch (error) {
+      console.error('Error updating typing status:', error);
+    }
+  };
+
+  // Manejar cambios en el input para detectar escritura
+  const handleInputChange = (value: string) => {
+    setMessageContent(value);
+
+    // Actualizar estado de typing
+    if (value.trim() && !isTyping) {
+      setIsTyping(true);
+      updateTypingStatus(true);
+    } else if (!value.trim() && isTyping) {
+      setIsTyping(false);
+      updateTypingStatus(false);
+    }
+
+    // Reset timeout para detener typing después de 3 segundos de inactividad
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    if (value.trim()) {
+      typingTimeoutRef.current = setTimeout(() => {
+        setIsTyping(false);
+        updateTypingStatus(false);
+      }, 3000);
     }
   };
 
@@ -221,12 +313,20 @@ export function Chat({ conversationId }: ChatProps) {
                           </div>
                         )}
                         
-                        <p className="text-xs mt-1 opacity-70">
+                        <p className="text-xs mt-1 opacity-70 flex items-center gap-1">
                           {new Date(message.created_at).toLocaleTimeString('es-ES', {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
                           {message.edited && <span className="ml-2 italic">(editado)</span>}
+                          {isOwn && message.read_at && (
+                            <span className="text-blue-500" title={`Visto ${new Date(message.read_at).toLocaleString()}`}>
+                              ✓✓
+                            </span>
+                          )}
+                          {isOwn && !message.read_at && (
+                            <span className="text-gray-400">✓</span>
+                          )}
                         </p>
                       </div>
 
@@ -295,6 +395,18 @@ export function Chat({ conversationId }: ChatProps) {
             })}
             <div ref={messagesEndRef} />
           </>
+        )}
+        
+        {/* Indicador de "escribiendo..." */}
+        {otherUserTyping && (
+          <div className="flex items-center gap-2 text-gray-500 text-sm">
+            <div className="flex gap-1">
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+            </div>
+            <span>Escribiendo...</span>
+          </div>
         )}
       </div>
 
@@ -389,7 +501,7 @@ export function Chat({ conversationId }: ChatProps) {
           <input
             type="text"
             value={messageContent}
-            onChange={(e) => setMessageContent(e.target.value)}
+            onChange={(e) => handleInputChange(e.target.value)}
             placeholder={t('chat.writeMessage')}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
             disabled={sending || editingMessage !== null}
