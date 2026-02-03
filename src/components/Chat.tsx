@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useMessages } from '../hooks/useChat';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../hooks/useNotifications';
-import { Send, Package, DollarSign, MoreVertical, Reply, Edit2, Trash2, Copy, Forward, Smile, Bell, BellOff, Paperclip, X, Image as ImageIcon, Film, File, Video } from 'lucide-react';
+import { Send, Package, DollarSign, MoreVertical, Reply, Edit2, Trash2, Copy, Forward, Smile, Bell, BellOff, Paperclip, X, Image as ImageIcon, Film, File, Video, Images } from 'lucide-react';
 import { ProductShareCard } from './ProductShareCard';
 import { QuickMessageButtons } from './QuickMessageButtons';
 import { VideoSelectorModal } from './VideoSelectorModal';
@@ -411,15 +411,20 @@ export function Chat({ conversationId }: ChatProps) {
   const handleSendProductVideo = async (videoUrl: string, videoName: string) => {
     if (!user || !conversationId) return;
     
-    // Crear un mensaje con el video adjunto
+    // Detectar si es imagen o video por extensión
+    const isImage = videoName.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+    
+    // Crear un mensaje con el archivo adjunto
     const attachment = {
       url: videoUrl,
       name: videoName,
       size: 0, // No tenemos el tamaño aquí pero no es crítico
-      type: 'video'
+      type: isImage ? 'image' : 'video'
     };
     
-    const message = `🎥 Te envío el video: ${videoName}`;
+    const emoji = isImage ? '🖼️' : '🎥';
+    const fileType = isImage ? 'imagen' : 'video';
+    const message = `${emoji} Te envío ${fileType}: ${videoName}`;
     await sendMessage(message, user.id, attachment, profile || undefined);
   };
 
@@ -549,14 +554,14 @@ export function Chat({ conversationId }: ChatProps) {
                               <img
                                 src={message.attachment_url}
                                 alt={message.attachment_name || 'Imagen'}
-                                className="rounded-lg max-w-full max-h-64 cursor-pointer hover:opacity-90 transition-opacity"
+                                className="rounded-lg max-w-full max-h-64 object-contain bg-gray-900 cursor-pointer hover:opacity-90 transition-opacity"
                                 onClick={() => setLightboxImage(message.attachment_url!)}
                               />
                             ) : message.attachment_type === 'video' ? (
                               <video
                                 src={message.attachment_url}
                                 controls
-                                className="rounded-lg max-w-full max-h-64"
+                                className="rounded-lg max-w-full max-h-64 bg-gray-900"
                               >
                                 Tu navegador no soporta video.
                               </video>
@@ -844,16 +849,16 @@ export function Chat({ conversationId }: ChatProps) {
             className="hidden"
           />
           
-          {/* Botón para enviar videos del producto (solo proveedores) */}
+          {/* Botón para enviar videos/fotos del producto (solo proveedores) */}
           {isProvider && conversation?.product_id && canRespond && (
             <button
               type="button"
               onClick={() => setShowVideoSelector(true)}
               disabled={sending || uploading}
               className="bg-purple-100 hover:bg-purple-200 disabled:bg-gray-50 disabled:text-gray-400 text-purple-700 px-4 py-2 rounded-lg flex items-center gap-2 transition"
-              title="Enviar video del producto"
+              title="Enviar video/foto del producto"
             >
-              <Video size={18} />
+              <Images size={18} />
             </button>
           )}
           

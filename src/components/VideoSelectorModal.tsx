@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, ProductVideo } from '../lib/supabase';
-import { Video, X, Send } from 'lucide-react';
+import { Video, X, Send, Image } from 'lucide-react';
 
 interface VideoSelectorModalProps {
   productId: string;
@@ -55,8 +55,8 @@ export function VideoSelectorModal({ productId, productName, onSendVideo, onClos
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div>
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Video size={20} />
-              Enviar Video del Producto
+              <Image size={20} />
+              Enviar Video/Foto del Producto
             </h3>
             <p className="text-sm text-gray-600 mt-1">{productName}</p>
           </div>
@@ -76,17 +76,20 @@ export function VideoSelectorModal({ productId, productName, onSendVideo, onClos
             </div>
           ) : videos.length === 0 ? (
             <div className="text-center py-8">
-              <Video size={48} className="text-gray-400 mx-auto mb-4" />
+              <Image size={48} className="text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">
-                No hay videos disponibles para este producto.
+                No hay archivos disponibles para este producto.
               </p>
               <p className="text-sm text-gray-500 mt-2">
-                Sube videos desde la sección de Gestión de Productos.
+                Sube videos o imágenes desde la sección de Gestión de Productos.
               </p>
             </div>
           ) : (
             <div className="space-y-2">
-              {videos.map((video) => (
+              {videos.map((video) => {
+                const isImage = video.video_name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                
+                return (
                 <button
                   key={video.id}
                   onClick={() => setSelectedVideo(video)}
@@ -96,32 +99,52 @@ export function VideoSelectorModal({ productId, productName, onSendVideo, onClos
                       : 'border-gray-200 hover:border-gray-300 bg-white'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${
-                      selectedVideo?.id === video.id ? 'bg-blue-600' : 'bg-gray-100'
-                    }`}>
-                      <Video 
-                        size={20} 
-                        className={selectedVideo?.id === video.id ? 'text-white' : 'text-gray-600'} 
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{video.video_name}</p>
-                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                        <span>{formatFileSize(video.video_size)}</span>
-                        <span>•</span>
-                        <span>{new Date(video.created_at).toLocaleDateString('es-ES')}</span>
-                      </div>
-                      {video.description && (
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{video.description}</p>
+                  <div className="flex items-start gap-3">
+                    {/* Preview miniatura */}
+                    <div className="flex-shrink-0">
+                      {isImage ? (
+                        <img
+                          src={video.video_url}
+                          alt={video.video_name}
+                          className="w-20 h-20 object-contain rounded-lg bg-gray-100"
+                        />
+                      ) : (
+                        <video
+                          src={video.video_url}
+                          className="w-20 h-20 object-contain rounded-lg bg-gray-900"
+                          preload="metadata"
+                        />
                       )}
                     </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start gap-2">
+                        {isImage ? (
+                          <Image size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
+                        ) : (
+                          <Video size={16} className="text-purple-600 mt-0.5 flex-shrink-0" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{video.video_name}</p>
+                          <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                            <span>{formatFileSize(video.video_size)}</span>
+                            <span>•</span>
+                            <span>{new Date(video.created_at).toLocaleDateString('es-ES')}</span>
+                          </div>
+                          {video.description && (
+                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{video.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
                     {selectedVideo?.id === video.id && (
-                      <div className="text-blue-600 font-semibold">✓</div>
+                      <div className="text-blue-600 font-semibold text-xl">✓</div>
                     )}
                   </div>
                 </button>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -140,7 +163,7 @@ export function VideoSelectorModal({ productId, productName, onSendVideo, onClos
             className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 transition"
           >
             <Send size={18} />
-            Enviar Video
+            Enviar
           </button>
         </div>
       </div>

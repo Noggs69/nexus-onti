@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase, ProductVideo } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
-import { Video, Upload, Trash2, X, Loader } from 'lucide-react';
+import { Video, Upload, Trash2, X, Loader, Image, FileImage } from 'lucide-react';
 
 interface ProductVideosManagerProps {
   productId: string;
@@ -32,7 +32,7 @@ export function ProductVideosManager({ productId, productName }: ProductVideosMa
       if (error) throw error;
       setVideos(data || []);
     } catch (error) {
-      console.error('Error loading videos:', error);
+      console.error('Error loading files:', error);
     } finally {
       setLoading(false);
     }
@@ -81,17 +81,17 @@ export function ProductVideosManager({ productId, productName }: ProductVideosMa
       if (fileInputRef.current) fileInputRef.current.value = '';
       await loadVideos();
       
-      alert('Video subido correctamente');
+      alert('Archivo subido correctamente');
     } catch (error) {
-      console.error('Error uploading video:', error);
-      alert('Error al subir el video');
+      console.error('Error uploading file:', error);
+      alert('Error al subir el archivo');
     } finally {
       setUploading(false);
     }
   }
 
   async function handleDelete(videoId: string, videoUrl: string) {
-    if (!confirm('¿Eliminar este video? Esta acción no se puede deshacer.')) return;
+    if (!confirm('¿Eliminar este archivo? Esta acción no se puede deshacer.')) return;
 
     try {
       // Extraer nombre del archivo de la URL
@@ -113,8 +113,8 @@ export function ProductVideosManager({ productId, productName }: ProductVideosMa
 
       await loadVideos();
     } catch (error) {
-      console.error('Error deleting video:', error);
-      alert('Error al eliminar el video');
+      console.error('Error deleting file:', error);
+      alert('Error al eliminar el archivo');
     }
   }
 
@@ -136,11 +136,11 @@ export function ProductVideosManager({ productId, productName }: ProductVideosMa
   return (
     <div className="bg-gray-50 rounded-lg p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-        <Video size={20} />
-        Videos Privados - {productName}
+        <FileImage size={20} />
+        Videos e Imágenes Privadas - {productName}
       </h3>
       <p className="text-sm text-gray-600 mb-4">
-        Estos videos solo son visibles para proveedores. Puedes enviarlos a clientes desde el chat.
+        Estos archivos solo son visibles para proveedores. Puedes enviarlos a clientes desde el chat.
       </p>
 
       {/* Formulario de subida */}
@@ -148,7 +148,7 @@ export function ProductVideosManager({ productId, productName }: ProductVideosMa
         <input
           ref={fileInputRef}
           type="file"
-          accept="video/*"
+          accept="video/*,image/*"
           onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
           className="hidden"
         />
@@ -160,7 +160,7 @@ export function ProductVideosManager({ productId, productName }: ProductVideosMa
           className="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 px-4 py-3 rounded-lg flex items-center justify-center gap-2 transition mb-3"
         >
           <Upload size={20} />
-          {selectedFile ? selectedFile.name : 'Seleccionar video'}
+          {selectedFile ? selectedFile.name : 'Seleccionar video o imagen'}
         </button>
 
         {selectedFile && (
@@ -187,7 +187,7 @@ export function ProductVideosManager({ productId, productName }: ProductVideosMa
                 ) : (
                   <>
                     <Upload size={18} />
-                    Subir Video
+                    Subir Archivo
                   </>
                 )}
               </button>
@@ -212,26 +212,38 @@ export function ProductVideosManager({ productId, productName }: ProductVideosMa
       <div className="space-y-3">
         {videos.length === 0 ? (
           <p className="text-center text-gray-500 py-4">
-            No hay videos subidos para este producto
+            No hay archivos subidos para este producto
           </p>
         ) : (
-          videos.map((video) => (
+          videos.map((video) => {
+            const isImage = video.video_name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+            console.log('File:', video.video_name, 'isImage:', isImage, 'URL:', video.video_url);
+            
+            return (
             <div
               key={video.id}
               className="bg-white rounded-lg p-4 border border-gray-200"
             >
               <div className="flex items-start gap-4">
-                {/* Preview del video */}
+                {/* Preview del archivo */}
                 <div className="flex-shrink-0">
-                  <video
-                    src={video.video_url}
-                    className="w-40 h-28 object-cover rounded-lg bg-gray-900"
-                    controls={false}
-                    preload="metadata"
-                  />
+                  {isImage ? (
+                    <img
+                      src={video.video_url}
+                      alt={video.video_name}
+                      className="w-40 h-28 object-contain rounded-lg bg-gray-100"
+                    />
+                  ) : (
+                    <video
+                      src={video.video_url}
+                      className="w-40 h-28 object-contain rounded-lg bg-gray-900"
+                      controls={false}
+                      preload="metadata"
+                    />
+                  )}
                 </div>
                 
-                {/* Información del video */}
+                {/* Información del archivo */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
@@ -249,7 +261,7 @@ export function ProductVideosManager({ productId, productName }: ProductVideosMa
                     <button
                       onClick={() => handleDelete(video.id, video.video_url)}
                       className="ml-3 text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition flex-shrink-0"
-                      title="Eliminar video"
+                      title="Eliminar archivo"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -257,7 +269,8 @@ export function ProductVideosManager({ productId, productName }: ProductVideosMa
                 </div>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
