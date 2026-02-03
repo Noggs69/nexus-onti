@@ -15,10 +15,11 @@ export function ConversationsList({
   selectedConversationId,
 }: ConversationsListProps) {
   const navigate = useNavigate();
-  const { conversations, loading, loadConversations, newConversationId, clearNewConversation } = useConversations();
+  const { conversations, loading, loadConversations, claimConversation, newConversationId, clearNewConversation } = useConversations();
   const { user, profile } = useAuth();
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [claimingConversation, setClaimingConversation] = useState<string | null>(null);
 
   const isProvider = profile?.role === 'provider';
 
@@ -145,6 +146,22 @@ export function ConversationsList({
     }
   };
 
+  const handleClaimConversation = async (conversationId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setClaimingConversation(conversationId);
+    try {
+      await claimConversation(conversationId);
+      // Una vez tomada, abrir la conversación
+      onSelectConversation(conversationId);
+    } catch (error) {
+      console.error('Error claiming conversation:', error);
+      alert('Error al tomar la conversación. Es posible que otro proveedor ya la haya tomado.');
+      await loadConversations(); // Recargar para ver el estado actualizado
+    } finally {
+      setClaimingConversation(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -176,17 +193,28 @@ export function ConversationsList({
             )}
           </div>
         ) : (
-          conversations.map((conversation) => (
+          conversations.map((conversation) => {
+            const isUnassigned = !conversation.provider_id;
+            const isMine = conversation.provider_id === user?.id;
+            const isTakenByOther = conversation.provider_id && conversation.provider_id !== user?.id;
+            
+            return (
             <div
               key={conversation.id}
               className={`relative w-full text-left border-b border-gray-200 transition ${
                 selectedConversationId === conversation.id
                   ? 'bg-blue-50 border-l-4 border-l-blue-600'
-                  : 'hover:bg-gray-100'
+                  : isTakenByOther ? 'opacity-60 bg-gray-50' : 'hover:bg-gray-100'
               }`}
             >
               <button
-                onClick={() => onSelectConversation(conversation.id)}
+                onClick={() => {
+                  // Solo permitir abrir si es cliente, o proveedor con conversación asignada/sin asignar
+                  if (!isProvider || !isTakenByOther) {
+                    onSelectConversation(conversation.id);
+                  }
+                }}
+                disabled={isProvider && isTakenByOther}
                 className="w-full p-4 pr-12"
               >
                 <div className="flex items-start justify-between">
@@ -196,9 +224,14 @@ export function ConversationsList({
                       <div>
                         <p className="font-medium text-sm text-gray-900 flex items-center gap-2">
                           {conversation.product.name}
-                          {!conversation.provider_id && (
-                            <span className="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full font-semibold">
-                              Sin asignar
+                          {isUnassigned && (
+                            <span className="px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full font-semibold">
+                              Disponible
+                            </span>
+                          )}
+                          {isTakenByOther && (
+                            <span className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded-full font-semibold">
+                              Tomada por otro
                             </span>
                           )}
                           {conversation.pinned && <Pin size={14} className="text-blue-600" />}
@@ -243,6 +276,29 @@ export function ConversationsList({
                   )}
                 </div>
               </button>
+
+              {/* Botón "Tomar conversación" para conversaciones sin asignar */}
+              {isProvider && isUnassigned && (
+                <div className="px-4 pb-3">
+                  <button
+                    onClick={(e) => handleClaimConversation(conversation.id, e)}
+                    disabled={claimingConversation === conversation.id}
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white text-sm font-medium py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    {claimingConversation === conversation.id ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        Tomando...
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare size={16} />
+                        Tomar conversación
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
               {/* Menú contextual */}
               <div className="absolute right-2 top-2">
@@ -302,7 +358,8 @@ export function ConversationsList({
                 )}
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

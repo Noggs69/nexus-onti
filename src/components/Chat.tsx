@@ -53,6 +53,7 @@ export function Chat({ conversationId }: ChatProps) {
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [conversation, setConversation] = useState<any>(null);
   
   // Estados para archivos adjuntos
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -67,6 +68,11 @@ export function Chat({ conversationId }: ChatProps) {
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previousMessagesCount = useRef(0);
 
+  // Verificar si el proveedor puede responder en esta conversación
+  const isProvider = profile?.role === 'provider';
+  const canRespond = !isProvider || !conversation || conversation.provider_id === user?.id || !conversation.provider_id;
+  const isTakenByOther = isProvider && conversation && conversation.provider_id && conversation.provider_id !== user?.id;
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -74,6 +80,47 @@ export function Chat({ conversationId }: ChatProps) {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Cargar información de la conversación actual
+  useEffect(() => {
+    if (!conversationId) {
+      setConversation(null);
+      return;
+    }
+
+    const loadConversation = async () => {
+      const { data } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('id', conversationId)
+        .single();
+      
+      setConversation(data);
+    };
+
+    loadConversation();
+
+    // Suscribirse a cambios en la conversación
+    const channel = supabase
+      .channel(`conversation-${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversations',
+          filter: `id=eq.${conversationId}`
+        },
+        (payload) => {
+          setConversation(payload.new);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [conversationId]);
 
   // Detectar nuevos mensajes y mostrar notificación
   useEffect(() => {
@@ -758,6 +805,18 @@ export function Chat({ conversationId }: ChatProps) {
           </div>
         )}
         
+        {/* Mostrar alerta si la conversación está tomada por otro proveedor */}
+        {isTakenByOther && (
+          <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-800 font-medium">
+              ⚠️ Esta conversación está siendo atendida por otro proveedor
+            </p>
+            <p className="text-xs text-amber-600 mt-1">
+              No puedes responder en esta conversación
+            </p>
+          </div>
+        )}
+
         <div className="flex gap-2">
           {/* Input oculto para archivos */}
           <input
@@ -772,7 +831,7 @@ export function Chat({ conversationId }: ChatProps) {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={sending || uploading || editingMessage !== null}
+            disabled={sending || uploading || editingMessage !== null || !canRespond}
             className="bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 transition"
             title="Adjuntar archivo"
           >
@@ -783,13 +842,13 @@ export function Chat({ conversationId }: ChatProps) {
             type="text"
             value={messageContent}
             onChange={(e) => handleInputChange(e.target.value)}
-            placeholder={t('chat.writeMessage')}
+            placeholder={!canRespond ? "No puedes responder aquí" : t('chat.writeMessage')}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-            disabled={sending || uploading || editingMessage !== null}
+            disabled={sending || uploading || editingMessage !== null || !canRespond}
           />
           <button
             type="submit"
-            disabled={sending || uploading || (!messageContent.trim() && !selectedFile) || editingMessage !== null}
+            disabled={sending || uploading || (!messageContent.trim() && !selectedFile) || editingMessage !== null || !canRespond}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
           >
             {uploading ? (

@@ -60,10 +60,11 @@ export function useConversations() {
       
       if (user?.id) {
         if (profile?.role === 'provider') {
-          // Los proveedores ven:
-          // 1. Conversaciones sin asignar (provider_id IS NULL)
-          // 2. Conversaciones asignadas a ellos (provider_id = su_id)
-          query = query.or(`provider_id.is.null,provider_id.eq.${user.id}`);
+          // Los proveedores ven TODAS las conversaciones:
+          // 1. Sin asignar (provider_id IS NULL)
+          // 2. Asignadas a ellos (provider_id = su_id)
+          // 3. Asignadas a otros (para que vean que están tomadas)
+          // No filtramos por provider_id - ven todo
         } else {
           // Los clientes solo ven sus propias conversaciones
           query = query.eq('customer_id', user.id);
@@ -102,7 +103,33 @@ export function useConversations() {
     }
   }
 
-  return { conversations, loading, error, loadConversations, newConversationId, clearNewConversation: () => setNewConversationId(null) };
+  async function claimConversation(conversationId: string) {
+    if (!user?.id || profile?.role !== 'provider') return;
+    
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ provider_id: user.id })
+        .eq('id', conversationId)
+        .is('provider_id', null); // Solo si aún no está asignada
+
+      if (error) throw error;
+      await loadConversations(); // Recargar lista
+    } catch (err) {
+      console.error('Error claiming conversation:', err);
+      throw err;
+    }
+  }
+
+  return { 
+    conversations, 
+    loading, 
+    error, 
+    loadConversations, 
+    claimConversation,
+    newConversationId, 
+    clearNewConversation: () => setNewConversationId(null) 
+  };
 }
 
 export function useMessages(conversationId: string | null) {
@@ -208,24 +235,6 @@ export function useMessages(conversationId: string | null) {
   ) {
     if (!conversationId) return;
     try {
-      // Si es un proveedor, verificar si la conversación está sin asignar
-      // y asignársela automáticamente
-      if (userProfile?.role === 'provider') {
-        const { data: conversation } = await supabase
-          .from('conversations')
-          .select('provider_id')
-          .eq('id', conversationId)
-          .single();
-
-        if (conversation && !conversation.provider_id) {
-          // Asignar la conversación al proveedor
-          await supabase
-            .from('conversations')
-            .update({ provider_id: senderId })
-            .eq('id', conversationId);
-        }
-      }
-
       const messageData: any = {
         conversation_id: conversationId,
         sender_id: senderId,
