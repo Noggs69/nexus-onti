@@ -196,6 +196,11 @@ export function ConversationsList({
                       <div>
                         <p className="font-medium text-sm text-gray-900 flex items-center gap-2">
                           {conversation.product.name}
+                          {!conversation.provider_id && (
+                            <span className="px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full font-semibold">
+                              Sin asignar
+                            </span>
+                          )}
                           {conversation.pinned && <Pin size={14} className="text-blue-600" />}
                           {conversation.muted_until && <VolumeX size={14} className="text-gray-400" />}
                         </p>

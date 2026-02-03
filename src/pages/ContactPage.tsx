@@ -58,20 +58,11 @@ export function ContactPage() {
 
     setLoading(true);
     try {
-      // Obtener el proveedor automáticamente (solo hay uno en el sistema)
-      const { data: providerData } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('role', 'provider')
-        .limit(1)
-        .maybeSingle();
-
-      const providerId = providerData?.id || null;
-      
+      // No asignar proveedor automáticamente - las conversaciones nuevas van a la cola compartida
       console.log('Creating conversation with:', {
         customer_id: user.id,
         product_id: selectedProductId,
-        provider_id: providerId
+        provider_id: null
       });
 
       const { data, error: err } = await supabase
@@ -79,7 +70,7 @@ export function ContactPage() {
         .insert({
           customer_id: user.id,
           product_id: selectedProductId,
-          provider_id: providerId,
+          provider_id: null,
         })
         .select()
         .maybeSingle();
@@ -95,23 +86,7 @@ export function ContactPage() {
         content: message,
       });
 
-      // Notificar al proveedor a través del servidor Pusher
-      if (providerId) {
-        try {
-          await fetch('http://localhost:5000/notify-new-conversation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              providerId,
-              conversationId: data.id,
-            }),
-          });
-        } catch (notifyError) {
-          console.error('Error notifying provider:', notifyError);
-          // No bloqueamos la operación si falla la notificación
-        }
-      }
-
+      // La notificación al proveedor se enviará cuando este tome la conversación
       navigate('/chat');
     } catch (error) {
       console.error('Error:', error);

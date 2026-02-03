@@ -42,7 +42,6 @@ export function useConversations() {
 
   async function loadConversations() {
     try {
-      // If we have a logged-in user, fetch conversations where they are customer OR provider
       let query = supabase
         .from('conversations')
         .select(`
@@ -60,28 +59,33 @@ export function useConversations() {
         .order('updated_at', { ascending: false });
       
       if (user?.id) {
-        // use .or to filter by either customer_id or provider_id equal to current user
-        query = query.or(`customer_id.eq.${user.id},provider_id.eq.${user.id}`);
+        if (profile?.role === 'provider') {
+          // Los proveedores ven:
+          // 1. Conversaciones sin asignar (provider_id IS NULL)
+          // 2. Conversaciones asignadas a ellos (provider_id = su_id)
+          query = query.or(`provider_id.is.null,provider_id.eq.${user.id}`);
+        } else {
+          // Los clientes solo ven sus propias conversaciones
+          query = query.eq('customer_id', user.id);
+        }
       }
 
       const { data, error: err } = await query;
 
       if (err) throw err;
       
-      // Enriquecer con email del cliente desde la vista pública
+      // Enriquecer con email del cliente desde la función
       const enrichedData = await Promise.all(
         (data || []).map(async (conv) => {
           if (conv.customer_id) {
-            // Obtener email desde la función get_user_email
-            const { data: emailData, error: emailError } = await supabase
+            const { data: emailData } = await supabase
               .rpc('get_user_email', { user_id: conv.customer_id });
             
             return {
               ...conv,
               customer: {
                 ...conv.customer,
-                id: conv.customer_id,
-                email: emailError ? 'Email no disponible' : emailData
+                email: emailData || 'Sin email'
               }
             };
           }
@@ -89,7 +93,7 @@ export function useConversations() {
         })
       );
       
-      setConversations(enrichedData as any);
+      setConversations(enrichedData || []);
     } catch (err) {
       console.error('Error loading conversations:', err);
       setError(err instanceof Error ? err.message : 'Error loading conversations');
@@ -160,15 +164,8 @@ export function useMessages(conversationId: string | null) {
   async function uploadFile(file: File, userId: string) {
     try {
       // Crear nombre único para el archivo
-      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      const fileExt = file.name.split('.').pop();
       const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-
-      console.log('📎 Subiendo archivo:', {
-        nombre: file.name,
-        tipo: file.type,
-        extension: fileExt,
-        tamano: file.size
-      });
 
       // Subir archivo a Supabase Storage
       const { data, error } = await supabase.storage
@@ -185,18 +182,11 @@ export function useMessages(conversationId: string | null) {
         .from('chat-files')
         .getPublicUrl(fileName);
 
-      const fileType = getFileType(file.type, file.name);
-      
-      console.log('✅ Archivo subido:', {
-        url: publicUrl,
-        tipo_detectado: fileType
-      });
-
       return {
         url: publicUrl,
         name: file.name,
         size: file.size,
-        type: fileType
+        type: getFileType(file.type)
       };
     } catch (err) {
       console.error('Error uploading file:', err);
@@ -204,39 +194,38 @@ export function useMessages(conversationId: string | null) {
     }
   }
 
-  function getFileType(mimeType: string, fileName: string): 'image' | 'video' | 'document' {
-    // Obtener extensión del archivo
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    
-    // Detectar por extensión primero (más confiable para archivos móviles)
-    const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'm4v', '3gp'];
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'];
-    
-    if (ext && videoExtensions.includes(ext)) {
-      console.log(`🎥 Detectado como video por extensión: .${ext}`);
-      return 'video';
-    }
-    
-    if (ext && imageExtensions.includes(ext)) {
-      console.log(`🖼️ Detectado como imagen por extensión: .${ext}`);
-      return 'image';
-    }
-    
-    // Fallback: detectar por MIME type
+  function getFileType(mimeType: string): 'image' | 'video' | 'document' {
     if (mimeType.startsWith('image/')) return 'image';
     if (mimeType.startsWith('video/')) return 'video';
-    
-    console.log(`📄 Detectado como documento: ${ext || mimeType}`);
     return 'document';
   }
 
   async function sendMessage(
     content: string, 
     senderId: string, 
-    attachment?: { url: string; name: string; size: number; type: string }
+    attachment?: { url: string; name: string; size: number; type: string },
+    userProfile?: { role: string }
   ) {
     if (!conversationId) return;
     try {
+      // Si es un proveedor, verificar si la conversación está sin asignar
+      // y asignársela automáticamente
+      if (userProfile?.role === 'provider') {
+        const { data: conversation } = await supabase
+          .from('conversations')
+          .select('provider_id')
+          .eq('id', conversationId)
+          .single();
+
+        if (conversation && !conversation.provider_id) {
+          // Asignar la conversación al proveedor
+          await supabase
+            .from('conversations')
+            .update({ provider_id: senderId })
+            .eq('id', conversationId);
+        }
+      }
+
       const messageData: any = {
         conversation_id: conversationId,
         sender_id: senderId,

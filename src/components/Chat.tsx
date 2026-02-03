@@ -38,7 +38,7 @@ function linkifyText(text: string) {
 
 export function Chat({ conversationId }: ChatProps) {
   const { messages, sendMessage, uploadFile, loading } = useMessages(conversationId);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { t } = useLanguage();
   const { permission, requestPermission, showNotification } = useNotifications();
   const [messageContent, setMessageContent] = useState('');
@@ -263,7 +263,7 @@ export function Chat({ conversationId }: ChatProps) {
       }
 
       // Enviar mensaje con o sin adjunto
-      const created = await sendMessage(content, user.id, attachment);
+      const created = await sendMessage(content, user.id, attachment, profile || undefined);
       
       // Limpiar archivo seleccionado
       handleCancelFile();
@@ -342,7 +342,7 @@ export function Chat({ conversationId }: ChatProps) {
   const handleAcceptPrice = async (productId: string, price: number) => {
     if (!user || !conversationId) return;
     const message = `✅ He aceptado el precio de €${price.toFixed(2)} para este producto.`;
-    await sendMessage(message, user.id);
+    await sendMessage(message, user.id, undefined, profile || undefined);
   };
 
   const handleCounterOffer = (productId: string) => {
@@ -353,7 +353,7 @@ export function Chat({ conversationId }: ChatProps) {
   const handleSendPriceOffer = async () => {
     if (!user || !conversationId || !productForOffer || !proposedPrice) return;
     const message = `💰 Propongo un precio de €${proposedPrice} para este producto. ¿Qué te parece?`;
-    await sendMessage(message, user.id);
+    await sendMessage(message, user.id, undefined, profile || undefined);
     setShowPriceOffer(false);
     setProductForOffer(null);
     setProposedPrice('');
@@ -361,7 +361,7 @@ export function Chat({ conversationId }: ChatProps) {
 
   const handleQuickMessage = async (message: string) => {
     if (!user || !conversationId) return;
-    await sendMessage(message, user.id);
+    await sendMessage(message, user.id, undefined, profile || undefined);
   };
 
   const parseMessage = (msg: any) => {
