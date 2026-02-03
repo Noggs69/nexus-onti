@@ -103,6 +103,18 @@ export interface Conversation {
   status: 'active' | 'archived';
   created_at: string;
   updated_at: string;
+  // Información expandida del producto
+  product?: {
+    id: string;
+    name: string;
+    image_url?: string;
+  } | null;
+  // Información expandida del cliente
+  customer?: {
+    id: string;
+    email: string;
+    full_name?: string;
+  } | null;
 }
 
 export interface Message {

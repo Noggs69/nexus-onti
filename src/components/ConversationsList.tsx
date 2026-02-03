@@ -191,20 +191,45 @@ export function ConversationsList({
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="font-medium text-sm text-gray-900 flex items-center gap-2">
-                      {conversation.status === 'active' ? 'Conversación Activa' : 'Conversación'}
-                      {conversation.pinned && <Pin size={14} className="text-blue-600" />}
-                      {conversation.muted_until && <VolumeX size={14} className="text-gray-400" />}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(conversation.created_at).toLocaleDateString('es-ES', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
+                    {/* Información para proveedores */}
+                    {isProvider && conversation.product ? (
+                      <div>
+                        <p className="font-medium text-sm text-gray-900 flex items-center gap-2">
+                          {conversation.product.name}
+                          {conversation.pinned && <Pin size={14} className="text-blue-600" />}
+                          {conversation.muted_until && <VolumeX size={14} className="text-gray-400" />}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {conversation.customer?.full_name || 'Cliente'} · {conversation.customer?.email || 'Sin email'}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(conversation.created_at).toLocaleDateString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    ) : (
+                      /* Información para clientes */
+                      <div>
+                        <p className="font-medium text-sm text-gray-900 flex items-center gap-2">
+                          {conversation.product?.name || 'Conversación Activa'}
+                          {conversation.pinned && <Pin size={14} className="text-blue-600" />}
+                          {conversation.muted_until && <VolumeX size={14} className="text-gray-400" />}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(conversation.created_at).toLocaleDateString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    )}
                   </div>
                   {conversation.unread_count > 0 && (
                     <span className="ml-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">

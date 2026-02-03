@@ -43,20 +43,53 @@ export function useConversations() {
   async function loadConversations() {
     try {
       // If we have a logged-in user, fetch conversations where they are customer OR provider
-      let query = supabase.from('conversations').select('*').order('updated_at', { ascending: false });
+      let query = supabase
+        .from('conversations')
+        .select(`
+          *,
+          product:products!conversations_product_id_fkey(
+            id,
+            name,
+            image_url
+          ),
+          customer:profiles!conversations_customer_id_fkey(
+            id,
+            full_name
+          )
+        `)
+        .order('updated_at', { ascending: false });
+      
       if (user?.id) {
         // use .or to filter by either customer_id or provider_id equal to current user
-        query = supabase
-          .from('conversations')
-          .select('*')
-          .or(`customer_id.eq.${user.id},provider_id.eq.${user.id}`)
-          .order('updated_at', { ascending: false });
+        query = query.or(`customer_id.eq.${user.id},provider_id.eq.${user.id}`);
       }
 
       const { data, error: err } = await query;
 
       if (err) throw err;
-      setConversations(data || []);
+      
+      // Enriquecer con email del cliente desde la vista pública
+      const enrichedData = await Promise.all(
+        (data || []).map(async (conv) => {
+          if (conv.customer_id) {
+            // Obtener email desde la función get_user_email
+            const { data: emailData, error: emailError } = await supabase
+              .rpc('get_user_email', { user_id: conv.customer_id });
+            
+            return {
+              ...conv,
+              customer: {
+                ...conv.customer,
+                id: conv.customer_id,
+                email: emailError ? 'Email no disponible' : emailData
+              }
+            };
+          }
+          return conv;
+        })
+      );
+      
+      setConversations(enrichedData as any);
     } catch (err) {
       console.error('Error loading conversations:', err);
       setError(err instanceof Error ? err.message : 'Error loading conversations');
