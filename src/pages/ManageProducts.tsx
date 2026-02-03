@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useProducts } from '../hooks/useProducts';
 import { useAuth } from '../hooks/useAuth';
@@ -23,6 +23,7 @@ export function ManageProducts() {
     featured: false,
   });
   const [saving, setSaving] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
 
   // Cargar producto desde state si viene de ProductCard
   useEffect(() => {
@@ -67,6 +68,11 @@ export function ManageProducts() {
       featured: product.featured || false,
     });
     setIsCreating(false);
+    
+    // Scroll suave al formulario
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const handleCreate = () => {
@@ -187,7 +193,7 @@ export function ManageProducts() {
 
       {/* Formulario de edición/creación */}
       {(editingProduct || isCreating) && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div ref={formRef} className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">
             {isCreating ? 'Crear Producto' : 'Editar Producto'}
           </h2>
@@ -237,7 +243,7 @@ export function ManageProducts() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
               />
             </div>
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Imagen URL
               </label>
@@ -248,6 +254,25 @@ export function ManageProducts() {
                 placeholder="/products/imagen.jpg"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent"
               />
+              {formData.image_url && (
+                <div className="mt-3">
+                  <p className="text-xs text-gray-500 mb-2">Vista previa:</p>
+                  <div className="relative w-48 h-48 border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                    <img
+                      src={formData.image_url}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling!.classList.remove('hidden');
+                      }}
+                    />
+                    <div className="hidden absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+                      Error al cargar imagen
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="flex items-center gap-2 mt-6">

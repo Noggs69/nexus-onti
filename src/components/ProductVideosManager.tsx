@@ -218,32 +218,44 @@ export function ProductVideosManager({ productId, productName }: ProductVideosMa
           videos.map((video) => (
             <div
               key={video.id}
-              className="bg-white rounded-lg p-4 flex items-center justify-between border border-gray-200"
+              className="bg-white rounded-lg p-4 border border-gray-200"
             >
-              <div className="flex items-center gap-3 flex-1">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <Video size={20} className="text-blue-600" />
+              <div className="flex items-start gap-4">
+                {/* Preview del video */}
+                <div className="flex-shrink-0">
+                  <video
+                    src={video.video_url}
+                    className="w-40 h-28 object-cover rounded-lg bg-gray-900"
+                    controls={false}
+                    preload="metadata"
+                  />
                 </div>
+                
+                {/* Información del video */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 truncate">{video.video_name}</p>
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                    <span>{formatFileSize(video.video_size)}</span>
-                    <span>•</span>
-                    <span>{new Date(video.created_at).toLocaleDateString('es-ES')}</span>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{video.video_name}</p>
+                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                        <span>{formatFileSize(video.video_size)}</span>
+                        <span>•</span>
+                        <span>{new Date(video.created_at).toLocaleDateString('es-ES')}</span>
+                      </div>
+                      {video.description && (
+                        <p className="text-sm text-gray-600 mt-2">{video.description}</p>
+                      )}
+                    </div>
+                    
+                    <button
+                      onClick={() => handleDelete(video.id, video.video_url)}
+                      className="ml-3 text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition flex-shrink-0"
+                      title="Eliminar video"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
-                  {video.description && (
-                    <p className="text-sm text-gray-600 mt-1">{video.description}</p>
-                  )}
                 </div>
               </div>
-              
-              <button
-                onClick={() => handleDelete(video.id, video.video_url)}
-                className="ml-3 text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition"
-                title="Eliminar video"
-              >
-                <Trash2 size={18} />
-              </button>
             </div>
           ))
         )}

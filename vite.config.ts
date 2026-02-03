@@ -17,7 +17,7 @@ export default defineConfig({
     headers: {
       // Allow connections to local pusher trigger server, Pusher CDN, and Supabase (HTTP + WebSocket)
       // Also explicitly allow blob workers via worker-src to satisfy Vite HMR worker creation in dev
-      'Content-Security-Policy': "default-src 'self'; connect-src 'self' http://localhost:5000 ws://localhost:5000 https://js.pusher.com https://*.pusher.com wss://*.pusher.com https://zvclaylphpigdidtqbed.supabase.co wss://zvclaylphpigdidtqbed.supabase.co; script-src 'self' https://js.pusher.com 'unsafe-inline' 'unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;"
+      'Content-Security-Policy': "default-src 'self'; connect-src 'self' http://localhost:5000 ws://localhost:5000 https://js.pusher.com https://*.pusher.com wss://*.pusher.com https://zvclaylphpigdidtqbed.supabase.co wss://zvclaylphpigdidtqbed.supabase.co; script-src 'self' https://js.pusher.com 'unsafe-inline' 'unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self' https://zvclaylphpigdidtqbed.supabase.co https://*.supabase.co blob: data:;"
     }
   }
 });

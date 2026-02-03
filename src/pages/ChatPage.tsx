@@ -70,7 +70,7 @@ export function ChatPage() {
                 <h2 className="font-semibold text-gray-900 text-sm md:text-base truncate">
                   {t('chat.conversation')}
                 </h2>
-                {quotes.length > 0 && (
+                {isProvider && quotes.length > 0 && (
                   <button
                     onClick={() => setShowQuotes(!showQuotes)}
                     className="hidden md:block text-sm text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded transition whitespace-nowrap"
@@ -129,7 +129,7 @@ export function ChatPage() {
                   />
                 </div>
               )}
-              {showQuotes && !showCreateQuote && !showSearch && (
+              {isProvider && showQuotes && !showCreateQuote && !showSearch && (
                 <div className="hidden md:block w-96 border-l border-gray-200 bg-white overflow-y-auto p-4">
                   <h3 className="font-semibold text-gray-900 mb-4">{t('chat.quotes')}</h3>
                   <QuoteView quotes={quotes} />
