@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useMessages } from '../hooks/useChat';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../hooks/useNotifications';
-import { Send, Package, DollarSign, MoreVertical, Reply, Edit2, Trash2, Copy, Forward, Smile, Bell, BellOff, Paperclip, X, Image as ImageIcon, Film, File } from 'lucide-react';
+import { Send, Package, DollarSign, MoreVertical, Reply, Edit2, Trash2, Copy, Forward, Smile, Bell, BellOff, Paperclip, X, Image as ImageIcon, Film, File, Video } from 'lucide-react';
 import { ProductShareCard } from './ProductShareCard';
 import { QuickMessageButtons } from './QuickMessageButtons';
+import { VideoSelectorModal } from './VideoSelectorModal';
 import { supabase, Product } from '../lib/supabase';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -54,6 +55,7 @@ export function Chat({ conversationId }: ChatProps) {
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [conversation, setConversation] = useState<any>(null);
+  const [showVideoSelector, setShowVideoSelector] = useState(false);
   
   // Estados para archivos adjuntos
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -404,6 +406,21 @@ export function Chat({ conversationId }: ChatProps) {
     setShowPriceOffer(false);
     setProductForOffer(null);
     setProposedPrice('');
+  };
+
+  const handleSendProductVideo = async (videoUrl: string, videoName: string) => {
+    if (!user || !conversationId) return;
+    
+    // Crear un mensaje con el video adjunto
+    const attachment = {
+      url: videoUrl,
+      name: videoName,
+      size: 0, // No tenemos el tamaño aquí pero no es crítico
+      type: 'video'
+    };
+    
+    const message = `🎥 Te envío el video: ${videoName}`;
+    await sendMessage(message, user.id, attachment, profile || undefined);
   };
 
   const handleQuickMessage = async (message: string) => {
@@ -827,6 +844,19 @@ export function Chat({ conversationId }: ChatProps) {
             className="hidden"
           />
           
+          {/* Botón para enviar videos del producto (solo proveedores) */}
+          {isProvider && conversation?.product_id && canRespond && (
+            <button
+              type="button"
+              onClick={() => setShowVideoSelector(true)}
+              disabled={sending || uploading}
+              className="bg-purple-100 hover:bg-purple-200 disabled:bg-gray-50 disabled:text-gray-400 text-purple-700 px-4 py-2 rounded-lg flex items-center gap-2 transition"
+              title="Enviar video del producto"
+            >
+              <Video size={18} />
+            </button>
+          )}
+          
           {/* Botón de adjuntar archivos */}
           <button
             type="button"
@@ -893,6 +923,16 @@ export function Chat({ conversationId }: ChatProps) {
             </a>
           </div>
         </div>
+      )}
+
+      {/* Modal de selección de videos del producto */}
+      {showVideoSelector && conversation?.product_id && (
+        <VideoSelectorModal
+          productId={conversation.product_id}
+          productName={conversation.product?.name || 'Producto'}
+          onSendVideo={handleSendProductVideo}
+          onClose={() => setShowVideoSelector(false)}
+        />
       )}
     </div>
   );

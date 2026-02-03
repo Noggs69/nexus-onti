@@ -28,6 +28,18 @@ export interface Product {
   updated_at: string;
 }
 
+export interface ProductVideo {
+  id: string;
+  product_id: string;
+  video_url: string;
+  video_name: string;
+  video_size: number;
+  description: string | null;
+  uploaded_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string;

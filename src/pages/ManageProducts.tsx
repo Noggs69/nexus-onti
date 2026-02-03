@@ -4,6 +4,7 @@ import { useProducts } from '../hooks/useProducts';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { Edit2, Trash2, Plus, Save, X, AlertCircle } from 'lucide-react';
+import { ProductVideosManager } from '../components/ProductVideosManager';
 
 export function ManageProducts() {
   const navigate = useNavigate();
@@ -277,6 +278,16 @@ export function ManageProducts() {
               Cancelar
             </button>
           </div>
+
+          {/* Gestión de videos si estamos editando un producto existente */}
+          {editingProduct && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <ProductVideosManager 
+                productId={editingProduct.id} 
+                productName={editingProduct.name}
+              />
+            </div>
+          )}
         </div>
       )}
 
