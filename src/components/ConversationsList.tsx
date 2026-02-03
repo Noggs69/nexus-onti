@@ -215,7 +215,7 @@ export function ConversationsList({
                       /* Información para clientes */
                       <div>
                         <p className="font-medium text-sm text-gray-900 flex items-center gap-2">
-                          {conversation.product?.name || 'Conversación Activa'}
+                          {conversation.product?.name || 'Consulta general'}
                           {conversation.pinned && <Pin size={14} className="text-blue-600" />}
                           {conversation.muted_until && <VolumeX size={14} className="text-gray-400" />}
                         </p>
