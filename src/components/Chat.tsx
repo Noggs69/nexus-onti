@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useMessages } from '../hooks/useChat';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../hooks/useNotifications';
-import { Send, Package, DollarSign, MoreVertical, Reply, Edit2, Trash2, Copy, Forward, Smile, Bell, BellOff } from 'lucide-react';
+import { Send, Package, DollarSign, MoreVertical, Reply, Edit2, Trash2, Copy, Forward, Smile, Bell, BellOff, Paperclip, X, Image as ImageIcon, Film, File } from 'lucide-react';
 import { ProductShareCard } from './ProductShareCard';
 import { QuickMessageButtons } from './QuickMessageButtons';
 import { supabase, Product } from '../lib/supabase';
@@ -37,7 +37,7 @@ function linkifyText(text: string) {
 }
 
 export function Chat({ conversationId }: ChatProps) {
-  const { messages, sendMessage, loading } = useMessages(conversationId);
+  const { messages, sendMessage, uploadFile, loading } = useMessages(conversationId);
   const { user } = useAuth();
   const { t } = useLanguage();
   const { permission, requestPermission, showNotification } = useNotifications();
@@ -53,6 +53,16 @@ export function Chat({ conversationId }: ChatProps) {
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  
+  // Estados para archivos adjuntos
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Estado para lightbox/modal de imágenes
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previousMessagesCount = useRef(0);
@@ -172,20 +182,91 @@ export function Chat({ conversationId }: ChatProps) {
     setEditContent('');
   };
 
+  // Manejar selección de archivo
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tamaño (máximo 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      alert('El archivo es demasiado grande. Máximo 50MB.');
+      return;
+    }
+
+    setSelectedFile(file);
+
+    // Crear preview para imágenes y videos
+    if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFilePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setFilePreview(null);
+    }
+  };
+
+  // Cancelar archivo seleccionado
+  const handleCancelFile = () => {
+    setSelectedFile(null);
+    setFilePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Obtener icono según tipo de archivo
+  const getFileIcon = (file: File) => {
+    if (file.type.startsWith('image/')) return <ImageIcon className="w-8 h-8" />;
+    if (file.type.startsWith('video/')) return <Film className="w-8 h-8" />;
+    return <File className="w-8 h-8" />;
+  };
+
+  // Formatear tamaño de archivo
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageContent.trim() || !user || !conversationId) return;
+    if ((!messageContent.trim() && !selectedFile) || !user || !conversationId) return;
 
     setSending(true);
+    setUploading(!!selectedFile);
     
     // Detener estado de "escribiendo" al enviar
     updateTypingStatus(false);
     
-    const content = messageContent;
+    const content = messageContent || (selectedFile ? '📎 Archivo adjunto' : '');
     setMessageContent(''); // Limpiar input inmediatamente para mejor UX
     
     try {
-      const created = await sendMessage(content, user.id);
+      let attachment;
+
+      // Si hay archivo, subirlo primero
+      if (selectedFile && uploadFile) {
+        try {
+          attachment = await uploadFile(selectedFile, user.id);
+        } catch (error) {
+          console.error('Error uploading file:', error);
+          alert('Error al subir el archivo. Intenta de nuevo.');
+          setSending(false);
+          setUploading(false);
+          setMessageContent(content);
+          return;
+        }
+      }
+
+      // Enviar mensaje con o sin adjunto
+      const created = await sendMessage(content, user.id, attachment);
+      
+      // Limpiar archivo seleccionado
+      handleCancelFile();
       
       // El mensaje aparecerá automáticamente gracias a la suscripción de Supabase Realtime
       // en useMessages (useChat.ts líneas 99-103)
@@ -210,6 +291,7 @@ export function Chat({ conversationId }: ChatProps) {
       setMessageContent(content);
     } finally {
       setSending(false);
+      setUploading(false);
     }
   };
 
@@ -396,7 +478,51 @@ export function Chat({ conversationId }: ChatProps) {
                             : 'bg-gray-200 text-gray-900 rounded-bl-none'
                         }`}
                       >
-                        <p className="text-sm whitespace-pre-wrap break-words">{linkifyText(message.content)}</p>
+                        {/* Archivo adjunto */}
+                        {message.attachment_url && (
+                          <div className="mb-2">
+                            {message.attachment_type === 'image' ? (
+                              <img
+                                src={message.attachment_url}
+                                alt={message.attachment_name || 'Imagen'}
+                                className="rounded-lg max-w-full max-h-64 cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => setLightboxImage(message.attachment_url!)}
+                              />
+                            ) : message.attachment_type === 'video' ? (
+                              <video
+                                src={message.attachment_url}
+                                controls
+                                className="rounded-lg max-w-full max-h-64"
+                              >
+                                Tu navegador no soporta video.
+                              </video>
+                            ) : (
+                              <a
+                                href={message.attachment_url}
+                                download={message.attachment_name}
+                                className={`flex items-center gap-2 p-3 rounded ${
+                                  isOwn ? 'bg-blue-700' : 'bg-gray-300'
+                                } hover:opacity-80 transition-opacity`}
+                              >
+                                <File className="w-6 h-6" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {message.attachment_name || 'Documento'}
+                                  </p>
+                                  {message.attachment_size && (
+                                    <p className="text-xs opacity-70">
+                                      {formatFileSize(message.attachment_size)}
+                                    </p>
+                                  )}
+                                </div>
+                              </a>
+                            )}
+                          </div>
+                        )}
+                        
+                        {message.content && (
+                          <p className="text-sm whitespace-pre-wrap break-words">{linkifyText(message.content)}</p>
+                        )}
                         
                         {/* Reacciones */}
                         {message.reactions && message.reactions.length > 0 && (
@@ -593,24 +719,122 @@ export function Chat({ conversationId }: ChatProps) {
             </div>
           </div>
         )}
+        
+        {/* Preview del archivo seleccionado */}
+        {selectedFile && (
+          <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {filePreview ? (
+                  <div className="w-16 h-16 flex-shrink-0 rounded overflow-hidden bg-gray-200">
+                    {selectedFile.type.startsWith('image/') ? (
+                      <img src={filePreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <video src={filePreview} className="w-full h-full object-cover" />
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 flex-shrink-0 rounded bg-gray-200 flex items-center justify-center text-gray-500">
+                    {getFileIcon(selectedFile)}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{selectedFile.name}</p>
+                  <p className="text-xs text-gray-500">{formatFileSize(selectedFile.size)}</p>
+                  {uploading && (
+                    <p className="text-xs text-blue-600 mt-1">Subiendo archivo...</p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelFile}
+                disabled={uploading}
+                className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+        )}
+        
         <div className="flex gap-2">
+          {/* Input oculto para archivos */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          
+          {/* Botón de adjuntar archivos */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || uploading || editingMessage !== null}
+            className="bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 px-4 py-2 rounded-lg flex items-center gap-2 transition"
+            title="Adjuntar archivo"
+          >
+            <Paperclip size={18} />
+          </button>
+          
           <input
             type="text"
             value={messageContent}
             onChange={(e) => handleInputChange(e.target.value)}
             placeholder={t('chat.writeMessage')}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-            disabled={sending || editingMessage !== null}
+            disabled={sending || uploading || editingMessage !== null}
           />
           <button
             type="submit"
-            disabled={sending || !messageContent.trim() || editingMessage !== null}
+            disabled={sending || uploading || (!messageContent.trim() && !selectedFile) || editingMessage !== null}
             className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
           >
-            <Send size={18} />
+            {uploading ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Send size={18} />
+            )}
           </button>
         </div>
       </form>
+
+      {/* Lightbox para imágenes */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            onClick={() => setLightboxImage(null)}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors"
+            title="Cerrar"
+          >
+            <X size={32} />
+          </button>
+          <img
+            src={lightboxImage}
+            alt="Vista ampliada"
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div className="absolute bottom-4 right-4 flex gap-2">
+            <a
+              href={lightboxImage}
+              download
+              className="bg-white text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center gap-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Descargar
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

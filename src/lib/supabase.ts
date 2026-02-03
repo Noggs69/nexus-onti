@@ -110,6 +110,10 @@ export interface Message {
   conversation_id: string;
   sender_id: string;
   content: string;
+  attachment_url?: string;
+  attachment_type?: 'image' | 'video' | 'document';
+  attachment_name?: string;
+  attachment_size?: number;
   created_at: string;
 }
 

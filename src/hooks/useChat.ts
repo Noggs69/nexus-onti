@@ -124,16 +124,69 @@ export function useMessages(conversationId: string | null) {
     }
   }
 
-  async function sendMessage(content: string, senderId: string) {
+  async function uploadFile(file: File, userId: string) {
+    try {
+      // Crear nombre único para el archivo
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+      // Subir archivo a Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('chat-files')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      // Obtener URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-files')
+        .getPublicUrl(fileName);
+
+      return {
+        url: publicUrl,
+        name: file.name,
+        size: file.size,
+        type: getFileType(file.type)
+      };
+    } catch (err) {
+      console.error('Error uploading file:', err);
+      throw err;
+    }
+  }
+
+  function getFileType(mimeType: string): 'image' | 'video' | 'document' {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    return 'document';
+  }
+
+  async function sendMessage(
+    content: string, 
+    senderId: string, 
+    attachment?: { url: string; name: string; size: number; type: string }
+  ) {
     if (!conversationId) return;
     try {
+      const messageData: any = {
+        conversation_id: conversationId,
+        sender_id: senderId,
+        content,
+      };
+
+      // Agregar información del archivo adjunto si existe
+      if (attachment) {
+        messageData.attachment_url = attachment.url;
+        messageData.attachment_type = attachment.type;
+        messageData.attachment_name = attachment.name;
+        messageData.attachment_size = attachment.size;
+      }
+
       const { data, error: err } = await supabase
         .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: senderId,
-          content,
-        })
+        .insert(messageData)
         .select('*')
         .single();
 
@@ -145,7 +198,7 @@ export function useMessages(conversationId: string | null) {
     }
   }
 
-  return { messages, loading, sendMessage };
+  return { messages, loading, sendMessage, uploadFile };
 }
 
 export function useQuotes(conversationId: string | null) {
