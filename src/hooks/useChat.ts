@@ -127,8 +127,15 @@ export function useMessages(conversationId: string | null) {
   async function uploadFile(file: File, userId: string) {
     try {
       // Crear nombre único para el archivo
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
       const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+      console.log('📎 Subiendo archivo:', {
+        nombre: file.name,
+        tipo: file.type,
+        extension: fileExt,
+        tamano: file.size
+      });
 
       // Subir archivo a Supabase Storage
       const { data, error } = await supabase.storage
@@ -145,11 +152,18 @@ export function useMessages(conversationId: string | null) {
         .from('chat-files')
         .getPublicUrl(fileName);
 
+      const fileType = getFileType(file.type, file.name);
+      
+      console.log('✅ Archivo subido:', {
+        url: publicUrl,
+        tipo_detectado: fileType
+      });
+
       return {
         url: publicUrl,
         name: file.name,
         size: file.size,
-        type: getFileType(file.type)
+        type: fileType
       };
     } catch (err) {
       console.error('Error uploading file:', err);
@@ -157,9 +171,29 @@ export function useMessages(conversationId: string | null) {
     }
   }
 
-  function getFileType(mimeType: string): 'image' | 'video' | 'document' {
+  function getFileType(mimeType: string, fileName: string): 'image' | 'video' | 'document' {
+    // Obtener extensión del archivo
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    
+    // Detectar por extensión primero (más confiable para archivos móviles)
+    const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'm4v', '3gp'];
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'];
+    
+    if (ext && videoExtensions.includes(ext)) {
+      console.log(`🎥 Detectado como video por extensión: .${ext}`);
+      return 'video';
+    }
+    
+    if (ext && imageExtensions.includes(ext)) {
+      console.log(`🖼️ Detectado como imagen por extensión: .${ext}`);
+      return 'image';
+    }
+    
+    // Fallback: detectar por MIME type
     if (mimeType.startsWith('image/')) return 'image';
     if (mimeType.startsWith('video/')) return 'video';
+    
+    console.log(`📄 Detectado como documento: ${ext || mimeType}`);
     return 'document';
   }
 
