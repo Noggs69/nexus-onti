@@ -21,66 +21,49 @@ export default function Cart() {
 
     setSharing(true);
     try {
-      // Get or create a conversation with the provider (assuming there's a default provider)
-      // First, get the provider user ID (you might need to adjust this based on your setup)
-      const { data: providers } = await supabase
-        .from('profiles')
+      // Obtener el primer producto del carrito para asociarlo a la conversación
+      const firstProduct = items[0]?.product as unknown as Product;
+      const productId = firstProduct?.id || null;
+
+      // Crear conversación sin proveedor asignado (cola compartida)
+      const { data: newConv, error: convError } = await supabase
+        .from('conversations')
+        .insert({
+          customer_id: user.id,
+          provider_id: null, // No asignar proveedor - va a cola compartida
+          product_id: productId, // Asociar con el primer producto del carrito
+          status: 'active',
+        })
         .select('id')
-        .limit(1);
+        .single();
 
-      let conversationId = null;
+      if (convError) throw convError;
 
-      if (providers && providers.length > 0) {
-        const providerId = providers[0].id;
+      const conversationId = newConv?.id;
 
-        // Check if conversation exists
-        const { data: existingConv } = await supabase
-          .from('conversations')
-          .select('id')
-          .or(`customer_id.eq.${user.id},provider_id.eq.${user.id}`)
-          .limit(1)
-          .maybeSingle();
+      // Enviar items del carrito como mensaje
+      if (conversationId) {
+        const cartSummary = items.map(item => {
+          const product = item.product as unknown as Product;
+          return `- ${product.name} x${item.quantity} - €${(product.price * item.quantity).toFixed(2)}`;
+        }).join('\n');
 
-        if (existingConv) {
-          conversationId = existingConv.id;
-        } else {
-          // Create new conversation
-          const { data: newConv } = await supabase
-            .from('conversations')
-            .insert({
-              customer_id: user.id,
-              provider_id: providerId,
-              status: 'active',
-            })
-            .select('id')
-            .single();
+        const totalAmount = getTotal();
+        const message = `${t('chat.interestedProducts')}\n\n${cartSummary}\n\n${t('chat.estimatedTotal')}: €${totalAmount.toFixed(2)}\n\n${t('chat.negotiateQuestion')}`;
 
-          conversationId = newConv?.id;
-        }
-
-        // Send cart items as a message
-        if (conversationId) {
-          const cartSummary = items.map(item => {
-            const product = item.product as unknown as Product;
-            return `- ${product.name} x${item.quantity} - €${(product.price * item.quantity).toFixed(2)}`;
-          }).join('\n');
-
-          const totalAmount = getTotal();
-          const message = `${t('chat.interestedProducts')}\n\n${cartSummary}\n\n${t('chat.estimatedTotal')}: €${totalAmount.toFixed(2)}\n\n${t('chat.negotiateQuestion')}`;
-
-          await supabase
-            .from('messages')
-            .insert({
-              conversation_id: conversationId,
-              sender_id: user.id,
-              content: message,
-            });
-        }
+        await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            sender_id: user.id,
+            content: message,
+          });
       }
 
       navigate('/chat');
     } catch (error) {
       console.error('Error sharing cart:', error);
+      alert('Error al contactar con el proveedor');
     } finally {
       setSharing(false);
     }

@@ -1,6 +1,6 @@
 import { ShoppingCart, Menu, LogOut, User, MessageSquare } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
 import { useLanguage } from '../context/LanguageContext';
@@ -11,10 +11,47 @@ export default function Header() {
   const { user, logout, profile } = useAuth();
   const { getItemCount } = useCart();
   const { t } = useLanguage();
-  const [showMenu, setShowMenu] = useState(false);
+  const [showMenu, setShowMenu] = useState(false); // Menú de usuario
+  const [showMobileNav, setShowMobileNav] = useState(false); // Menú de navegación móvil
   const itemCount = getItemCount();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
 
   const isProvider = profile?.role === 'provider';
+
+  // Cerrar menú de usuario al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
+
+  // Cerrar menú de navegación móvil al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (mobileNavRef.current && !mobileNavRef.current.contains(event.target as Node)) {
+        setShowMobileNav(false);
+      }
+    }
+
+    if (showMobileNav) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMobileNav]);
 
   const handleLogout = async () => {
     await logout();
@@ -27,12 +64,45 @@ export default function Header() {
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-8">
-            <button
-              onClick={() => setShowMenu(!showMenu)}
-              className="lg:hidden text-white"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
+            <div className="relative" ref={mobileNavRef}>
+              <button
+                onClick={() => setShowMobileNav(!showMobileNav)}
+                className="lg:hidden text-white"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+
+              {/* Menú de navegación móvil */}
+              {showMobileNav && (
+                <div className="absolute left-0 mt-2 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-lg">
+                  <Link
+                    to="/products"
+                    onClick={() => setShowMobileNav(false)}
+                    className="block px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+                  >
+                    {t('nav.products')}
+                  </Link>
+                  {!isProvider && (
+                    <Link
+                      to="/contact"
+                      onClick={() => setShowMobileNav(false)}
+                      className="block px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+                    >
+                      {t('nav.contact')}
+                    </Link>
+                  )}
+                  {isProvider && (
+                    <Link
+                      to="/manage-products"
+                      onClick={() => setShowMobileNav(false)}
+                      className="block px-4 py-3 text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
+                    >
+                      Gestionar Productos
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
 
             <Link to="/" className="flex items-center">
               <span className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-400 via-cyan-400 to-green-400 text-transparent bg-clip-text">
@@ -84,7 +154,7 @@ export default function Header() {
             )}
 
             {user ? (
-              <div className="relative">
+              <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setShowMenu(!showMenu)}
                   className="text-gray-300 hover:text-white transition-colors flex items-center space-x-1"
@@ -104,24 +174,6 @@ export default function Header() {
                     >
                       {t('nav.account')}
                     </Link>
-                    {!isProvider && (
-                      <Link
-                        to="/contact"
-                        onClick={() => setShowMenu(false)}
-                        className="block px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
-                      >
-                        {t('nav.contact')}
-                      </Link>
-                    )}
-                    {isProvider && (
-                      <Link
-                        to="/manage-products"
-                        onClick={() => setShowMenu(false)}
-                        className="block px-4 py-2 text-gray-300 hover:text-white hover:bg-gray-800 transition-colors"
-                      >
-                        Gestionar Productos
-                      </Link>
-                    )}
                     <Link
                       to="/chat"
                       onClick={() => setShowMenu(false)}
